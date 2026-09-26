@@ -194,7 +194,7 @@ function renderUpdateState(update) {
   if (!update) return;
   const current = update.currentVersion ? `Version ${update.currentVersion}` : 'Diese Version';
   const texts = {
-    disabled: `${current} · Automatische Updates sind in dieser Ausführung nicht aktiv.`,
+    disabled: `${current} · Automatische Updates sind in dieser Ausführung nicht aktiv. Installiere einmal die aktuelle Version von github.com/MrYourself/1/releases, danach aktualisiert sich die App selbst.`,
     idle: `${current}`,
     checking: 'Suche nach Updates …',
     current: `${current} ist aktuell.`,
