@@ -2,7 +2,7 @@
 
 Ein transparentes Windows-Overlay, das Twitch- und TikTok-LIVE-Chats gemeinsam über einem Spiel anzeigt. Das Fenster bleibt immer im Vordergrund und jederzeit bedienbar.
 
-## Korrekturen in Version 0.1.16
+## Korrekturen in Version 0.1.17
 
 - Einzelne Wörter (Namen, Emote-Wörter, Ausrufe wie „aniimooooo“) werden nicht mehr übersetzt. DeepL hat bei ihnen Sprache und Bedeutung geraten.
 - Langgezogene Buchstaben („sooooo“) werden vor der Übersetzung gekürzt.
@@ -213,4 +213,4 @@ Ein normales Desktop-Overlay kann über randlosem Vollbild und Fenstermodus ange
 - Ein optionaler Euler-Stream-API-Key liegt ebenfalls verschlüsselt im Windows-Benutzerprofil
 - Chatverläufe und Einstellungen liegen ausschließlich im lokalen Windows-Benutzerprofil
 
-Durch die TikTok-Komponente steht Version 0.1.16 unter der GNU Affero General Public License 3.0. Der vollständige Quellcode wird zusammen mit jeder EXE bereitgestellt.
+Durch die TikTok-Komponente steht Version 0.1.17 unter der GNU Affero General Public License 3.0. Der vollständige Quellcode wird zusammen mit jeder EXE bereitgestellt.
