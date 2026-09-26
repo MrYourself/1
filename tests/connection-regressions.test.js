@@ -306,6 +306,38 @@ test('expired login does not schedule another Twitch connection', async () => {
   assert.equal(app.run('accessSession'), null);
 });
 
+test('a refresh token already used by another app instance adopts the newer stored login', async () => {
+  const app = mainContext();
+  app.run(`
+    settings.clientId = 'abcdefghij1234';
+    accessSession = { accessToken: 'old-access', refreshToken: 'old-refresh', expiresAt: 0, user: { id: '1', login: 'viewer' } };
+    fetchWithTimeout = async () => ({ ok: false, status: 400, text: async () => '{"status":400,"message":"Invalid refresh token"}' });
+    loadSession = () => ({ accessToken: 'new-access', refreshToken: 'new-refresh', expiresAt: Date.now() + 3600000, user: null });
+    requireNewTwitchLogin = () => { throw new Error('must not log out'); };
+    recordAuthEvent = () => {};
+  `);
+  assert.equal(await app.run('refreshAccessToken()'), 'new-access');
+  assert.equal(app.run('accessSession.refreshToken'), 'new-refresh');
+  assert.equal(app.run('accessSession.user.login'), 'viewer');
+});
+
+test('a rejected refresh without a newer stored login asks for a new login', async () => {
+  const app = mainContext();
+  app.run(`
+    settings.clientId = 'abcdefghij1234';
+    accessSession = { accessToken: 'a', refreshToken: 'same', expiresAt: 0, user: { id: '1', login: 'viewer' } };
+    fetchWithTimeout = async () => ({ ok: false, status: 400, text: async () => '{"status":400,"message":"Invalid refresh token"}' });
+    loadSession = () => ({ accessToken: 'a', refreshToken: 'same', expiresAt: 0 });
+    var events = [];
+    recordAuthEvent = message => events.push(message);
+    var loggedOut = false;
+    requireNewTwitchLogin = () => { loggedOut = true; };
+  `);
+  await assert.rejects(app.run('refreshAccessToken()'), /abgelaufen/);
+  assert.equal(app.run('loggedOut'), true);
+  assert.match(app.run('events[0]'), /Invalid refresh token/);
+});
+
 test('IRC retries again if its token refresh fails during a reconnect', async () => {
   const app = mainContext();
   configureTwitch(app);

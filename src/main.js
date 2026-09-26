@@ -685,7 +685,33 @@ function deleteSession() {
   accessSession = null;
 }
 
+function authLogPath() {
+  return path.join(app.getPath('userData'), 'auth-events.log');
+}
+
+// Twitch answers failed refreshes with {"status":400,"message":"Invalid refresh token"}.
+function twitchErrorMessage(body) {
+  try {
+    return String(JSON.parse(body)?.message || 'keine Angabe').slice(0, 120);
+  } catch {
+    return String(body || 'keine Angabe').replace(/\s+/g, ' ').slice(0, 120);
+  }
+}
+
+// Keeps the reasons for lost logins (never tokens), so a forced re-login can be explained.
+function recordAuthEvent(message) {
+  try {
+    const file = authLogPath();
+    let lines = [];
+    try { lines = fs.readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean); } catch {}
+    lines.push(`${new Date().toISOString()} v${app.getVersion()} ${message}`);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, `${lines.slice(-100).join('\n')}\n`, 'utf8');
+  } catch {}
+}
+
 function requireNewTwitchLogin(reason) {
+  recordAuthEvent(`Neue Anmeldung erforderlich: ${reason}`);
   ++twitchGeneration;
   clearTwitchReconnect();
   deleteSession();
@@ -1044,10 +1070,22 @@ async function performRefreshAccessToken() {
   const response = await fetchWithTimeout(TWITCH_TOKEN_URL, { method: 'POST', body: form });
   if (accessSession !== sessionToRefresh) throw new Error('Die Twitch-Anmeldung wurde zwischenzeitlich geändert.');
   if (!response.ok) {
+    const detail = await response.text().catch(() => '');
     if ([400, 401, 403].includes(response.status)) {
+      // Refresh tokens are single-use. If another process using the same login file
+      // (e.g. a second copy of the app) refreshed first, adopt its newer token.
+      const stored = loadSession();
+      if (stored?.refreshToken && stored.refreshToken !== sessionToRefresh.refreshToken) {
+        recordAuthEvent(`Erneuerung abgelehnt (${response.status}), neuere gespeicherte Anmeldung übernommen`);
+        accessSession = { ...stored, user: stored.user || sessionToRefresh.user };
+        if (accessSession.expiresAt - Date.now() > 60 * 1000) return accessSession.accessToken;
+        throw new Error('Die Twitch-Anmeldung wurde gerade von einer anderen App-Instanz erneuert.');
+      }
+      recordAuthEvent(`Erneuerung abgelehnt (${response.status}): ${twitchErrorMessage(detail)}`);
       requireNewTwitchLogin('Die Twitch-Anmeldung ist abgelaufen. Bitte erneut anmelden.');
       throw new Error('Die Twitch-Anmeldung ist abgelaufen. Bitte erneut anmelden.');
     }
+    recordAuthEvent(`Erneuerung vorübergehend fehlgeschlagen (${response.status})`);
     throw new Error(`Twitch konnte die Anmeldung vorübergehend nicht erneuern (${response.status}).`);
   }
   const token = await response.json();
@@ -2098,6 +2136,11 @@ function registerIpc() {
     await shell.openExternal(updateReleasesUrl);
   });
 }
+
+// The development build (npm start) keeps its own data folder. Sharing one with the
+// installed app meant a shared single-use Twitch refresh token and a shared
+// single-instance lock, so one copy could log the other out or block its start.
+if (app && app.isPackaged === false) app.setPath('userData', path.join(app.getPath('appData'), 'twitch-chat-overlay-dev'));
 
 const singleInstanceLock = app.requestSingleInstanceLock();
 if (!singleInstanceLock) {
