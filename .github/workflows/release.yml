@@ -1,0 +1,43 @@
+name: Release
+
+# A pushed version tag (v1.2.3) builds the Windows installer and portable EXE and
+# publishes them as a GitHub release. Installed apps pick the update up from there.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Check that the tag matches package.json
+        shell: bash
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          if [ "$expected" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME passt nicht zur Version $expected in package.json." >&2
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - run: npm run check
+
+      - name: Build and publish
+        run: npx electron-builder --win nsis portable --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

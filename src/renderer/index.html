@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; frame-src 'none'; connect-src 'none'; img-src 'self' data: https:; style-src 'self'; script-src 'self';">
+  <title>Stream Chat Overlay</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app">
+    <header id="toolbar" class="toolbar">
+      <div class="drag-zone">
+        <span class="brand-mark">S</span>
+        <div>
+          <strong>Stream Chat Overlay</strong>
+          <span id="connectionStatus" class="status status-signed-out">Nicht verbunden</span>
+        </div>
+      </div>
+      <div class="toolbar-actions no-drag">
+        <button id="settingsButton" class="icon-button" title="Einstellungen">⚙</button>
+        <button id="hideButton" class="icon-button" title="Overlay ausblenden (Strg+Umschalt+H)">—</button>
+        <button id="closeButton" class="icon-button close-button" title="Overlay beenden" aria-label="Overlay beenden">✕</button>
+      </div>
+    </header>
+
+    <section id="streamStats" class="stream-stats" aria-label="Live-Statistiken">
+      <span id="twitchViewerStat" class="stream-stat" title="Twitch-Zuschauer">
+        <span class="stat-brand stat-brand-twitch" aria-hidden="true">T</span>
+        <span aria-hidden="true">👁</span>
+        <strong id="twitchViewerCount">–</strong>
+      </span>
+      <span id="tiktokViewerStat" class="stream-stat" title="TikTok-Zuschauer">
+        <span class="stat-brand stat-brand-tiktok" aria-hidden="true">TT</span>
+        <span aria-hidden="true">👁</span>
+        <strong id="tiktokViewerCount">–</strong>
+      </span>
+      <span id="streamDurationStat" class="stream-stat stat-duration" title="Streamdauer">
+        <span aria-hidden="true">⏱</span>
+        <strong id="streamDuration">--:--:--</strong>
+      </span>
+      <span id="localClockStat" class="stream-stat stat-clock" title="Lokale Uhrzeit">
+        <span aria-hidden="true">🕒</span>
+        <strong id="localClock">--:--</strong>
+      </span>
+    </section>
+
+    <section id="chat" class="chat" aria-live="polite">
+      <div id="messages" class="messages"></div>
+      <div id="emptyState" class="empty-state">
+        <span class="empty-icon">💬</span>
+        <strong>Der Chat wartet.</strong>
+        <span>Neue Twitch- und TikTok-Nachrichten erscheinen hier.</span>
+      </div>
+    </section>
+
+    <aside id="setupPanel" class="panel setup-panel hidden">
+      <div class="panel-heading">
+        <div>
+          <span class="eyebrow">Ersteinrichtung</span>
+          <h1>Mit Twitch verbinden</h1>
+        </div>
+      </div>
+      <p>Für den sicheren Twitch-Login braucht das Overlay einmalig die öffentliche Client-ID deiner Twitch-Anwendung. Ein Client-Secret wird nicht benötigt.</p>
+      <p id="authReason" class="info-text hidden"></p>
+      <label class="field">
+        <span>Twitch Client-ID</span>
+        <input id="clientIdInput" type="text" spellcheck="false" autocomplete="off" placeholder="Client-ID hier einfügen">
+      </label>
+      <button id="developerConsoleButton" class="link-button">Twitch Developer Console öffnen</button>
+      <button id="authButton" class="wide-button">Mit Twitch anmelden</button>
+      <div id="deviceCodeBox" class="device-box hidden">
+        <span>Code für Twitch</span>
+        <strong id="deviceCode">–</strong>
+        <small>Das Browserfenster wurde geöffnet. Dort anmelden und diesen Code bestätigen.</small>
+      </div>
+      <p id="authError" class="error-text hidden"></p>
+    </aside>
+
+    <aside id="settingsPanel" class="panel settings-panel hidden">
+      <div class="panel-heading">
+        <div>
+          <span class="eyebrow">Live-Anpassung</span>
+          <h2>Overlay-Einstellungen</h2>
+        </div>
+        <button id="closeSettingsButton" class="icon-button">×</button>
+      </div>
+
+      <div class="settings-grid">
+        <label class="field full">
+          <span>Twitch-Kanal</span>
+          <input id="channelInput" type="text" spellcheck="false" placeholder="kanalname">
+        </label>
+        <label class="field full">
+          <span>TikTok-LIVE-Name <small>optional · ohne @</small></span>
+          <input id="tiktokUsernameInput" type="text" spellcheck="false" placeholder="tiktokname">
+        </label>
+        <label class="field full">
+          <span>Euler-Stream-API-Key <small>optional · für zuverlässigere TikTok-Verbindung</small></span>
+          <div class="secret-row">
+            <input id="tiktokApiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="API-Key einfügen">
+            <button id="saveTikTokApiKeyButton" type="button" class="secondary-button">Speichern</button>
+            <button id="clearTikTokApiKeyButton" type="button" class="link-button danger">Entfernen</button>
+          </div>
+          <small id="tiktokApiKeyStatus" class="field-help">Kein API-Key gespeichert.</small>
+          <button id="eulerButton" type="button" class="link-button field-link">Euler Stream öffnen</button>
+        </label>
+        <label class="field">
+          <span>Schriftgröße <output id="fontSizeOutput"></output></span>
+          <input id="fontSizeInput" type="range" min="12" max="42" step="1">
+        </label>
+        <label class="field">
+          <span>Hintergrund <output id="opacityOutput"></output></span>
+          <input id="opacityInput" type="range" min="0" max="100" step="1">
+        </label>
+        <label class="field">
+          <span>Ausblenden nach <output id="fadeOutput"></output></span>
+          <input id="fadeInput" type="range" min="0" max="180" step="5">
+        </label>
+        <label class="field">
+          <span>Max. Nachrichten <output id="maxMessagesOutput"></output></span>
+          <input id="maxMessagesInput" type="range" min="5" max="200" step="5">
+        </label>
+      </div>
+
+      <div class="toggle-list">
+        <label class="toggle"><input id="timestampsInput" type="checkbox"><span></span>Zeitstempel anzeigen</label>
+        <label class="toggle"><input id="compactInput" type="checkbox"><span></span>Kompakte Darstellung</label>
+        <label class="toggle"><input id="botsInput" type="checkbox"><span></span>Bekannte Bots ausblenden</label>
+        <label class="toggle"><input id="commandsInput" type="checkbox"><span></span>Chatbefehle mit ! ausblenden</label>
+        <label class="toggle"><input id="tiktokGiftsInput" type="checkbox"><span></span>TikTok-Geschenke anzeigen</label>
+        <label class="toggle"><input id="tiktokSocialsInput" type="checkbox"><span></span>TikTok-Follows und Shares</label>
+        <label class="toggle"><input id="streamStatsInput" type="checkbox"><span></span>Live-Statistikleiste anzeigen</label>
+        <label class="toggle"><input id="streamSafeInput" type="checkbox"><span></span>Stream-Safe: vor Aufnahmen verbergen</label>
+      </div>
+      <p class="setting-note">Stream-Safe blendet das Overlay für unterstützte Bildschirmaufnahmen und Screenshots aus – lokal bleibt es sichtbar.</p>
+
+      <label class="field">
+        <span>Ausgeblendete Nutzer</span>
+        <textarea id="hiddenUsersInput" rows="2" placeholder="nightbot, weiterername"></textarea>
+      </label>
+      <label class="field">
+        <span>Blockierte Wörter oder Phrasen</span>
+        <textarea id="blockedTermsInput" rows="2" placeholder="Ein Eintrag pro Zeile oder mit Komma trennen"></textarea>
+      </label>
+
+      <section class="settings-section" aria-labelledby="translationHeading">
+        <h3 id="translationHeading">Chat-Übersetzung</h3>
+        <label class="toggle"><input id="translationInput" type="checkbox"><span></span>Fremdsprachige Nachrichten mit DeepL übersetzen</label>
+        <div class="settings-grid">
+          <label class="field">
+            <span>Übersetzen nach</span>
+            <select id="translationTargetInput">
+              <option value="DE">Deutsch</option>
+              <option value="EN-US">Englisch (US)</option>
+              <option value="EN-GB">Englisch (UK)</option>
+              <option value="ES">Spanisch</option>
+              <option value="FR">Französisch</option>
+              <option value="IT">Italienisch</option>
+              <option value="NL">Niederländisch</option>
+              <option value="PL">Polnisch</option>
+              <option value="PT-BR">Portugiesisch (BR)</option>
+              <option value="TR">Türkisch</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Nicht übersetzen aus <small>Sprachcodes</small></span>
+            <input id="translationSkipInput" type="text" spellcheck="false" placeholder="EN, DE">
+          </label>
+        </div>
+        <div class="field">
+          <span>DeepL-API-Key <small>Free: 500.000 Zeichen pro Monat</small></span>
+          <div class="secret-row">
+            <input id="deeplApiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="API-Key einfügen" aria-label="DeepL-API-Key">
+            <button id="saveDeepLApiKeyButton" type="button" class="secondary-button">Speichern</button>
+            <button id="clearDeepLApiKeyButton" type="button" class="link-button danger">Entfernen</button>
+          </div>
+          <small id="deeplApiKeyStatus" class="field-help">Kein API-Key gespeichert.</small>
+          <div class="link-row">
+            <button id="deeplUsageButton" type="button" class="link-button">Kontingent prüfen</button>
+            <button id="deeplButton" type="button" class="link-button">DeepL-API-Key erstellen</button>
+          </div>
+        </div>
+        <p id="translationErrorText" class="diagnostic-error hidden"></p>
+      </section>
+
+      <section class="settings-section" aria-labelledby="captionsHeading">
+        <h3 id="captionsHeading">Stream-Untertitel <small class="beta-tag">Beta</small></h3>
+        <label class="toggle"><input id="captionsInput" type="checkbox"><span></span>Untertitel-Fenster für den Stream</label>
+        <p class="setting-note captions-note">Das Fenster „Stream-Untertitel“ in OBS und TikTok LIVE Studio als Fensteraufnahme hinzufügen. Gesprochenes Deutsch wird mit dem DeepL-Key übersetzt.</p>
+        <div class="field">
+          <span>Deepgram-API-Key <small>Spracherkennung</small></span>
+          <div class="secret-row">
+            <input id="deepgramApiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="API-Key einfügen" aria-label="Deepgram-API-Key">
+            <button id="saveDeepgramApiKeyButton" type="button" class="secondary-button">Speichern</button>
+            <button id="clearDeepgramApiKeyButton" type="button" class="link-button danger">Entfernen</button>
+          </div>
+          <small id="deepgramApiKeyStatus" class="field-help">Kein API-Key gespeichert.</small>
+          <button id="deepgramButton" type="button" class="link-button field-link">Deepgram-Konto öffnen</button>
+        </div>
+        <label class="field">
+          <span>Mikrofon</span>
+          <select id="captionsDeviceInput">
+            <option value="">Windows-Standardmikrofon</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Sprach-Schwelle <output id="captionsGateOutput"></output></span>
+          <input id="captionsGateInput" type="range" min="0" max="100" step="1">
+          <span class="level-meter" aria-hidden="true"><span id="captionsLevelBar" class="level-bar"></span><span id="captionsGateMark" class="level-mark"></span></span>
+          <small class="field-help">Beim Sprechen muss der Balken über die Markierung gehen, in Ruhe darunter bleiben. Nur Sprache wird übertragen.</small>
+        </label>
+        <div class="settings-grid">
+          <label class="field">
+            <span>Untertitel-Sprache</span>
+            <select id="captionsTargetInput">
+              <option value="EN-US">Englisch (US)</option>
+              <option value="EN-GB">Englisch (UK)</option>
+              <option value="DE">Deutsch</option>
+              <option value="ES">Spanisch</option>
+              <option value="FR">Französisch</option>
+              <option value="IT">Italienisch</option>
+              <option value="NL">Niederländisch</option>
+              <option value="PL">Polnisch</option>
+              <option value="PT-BR">Portugiesisch (BR)</option>
+              <option value="TR">Türkisch</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Hintergrund</span>
+            <select id="captionsBackgroundInput">
+              <option value="dark">Dunkler Balken</option>
+              <option value="green">Grün (für Chroma-Key)</option>
+            </select>
+          </label>
+          <label class="field full">
+            <span>Untertitel-Schrift <output id="captionsFontSizeOutput"></output></span>
+            <input id="captionsFontSizeInput" type="range" min="16" max="72" step="1">
+          </label>
+        </div>
+        <label class="toggle"><input id="captionsOriginalInput" type="checkbox"><span></span>Original über der Übersetzung anzeigen</label>
+        <p id="captionsErrorText" class="diagnostic-error hidden"></p>
+      </section>
+
+      <section class="settings-section" aria-labelledby="updatesHeading">
+        <h3 id="updatesHeading">Updates</h3>
+        <p id="updateStatusText" class="setting-note update-status" aria-live="polite">Version wird ermittelt …</p>
+        <div class="button-row update-buttons">
+          <button id="checkUpdateButton" type="button" class="secondary-button">Nach Updates suchen</button>
+          <button id="installUpdateButton" type="button" class="primary-button hidden">Jetzt neu starten und installieren</button>
+          <button id="downloadUpdateButton" type="button" class="secondary-button hidden">Download öffnen</button>
+        </div>
+      </section>
+
+      <div class="button-row">
+        <button id="demoButton" class="secondary-button">Highlights testen</button>
+        <button id="clearButton" class="secondary-button">Chat leeren</button>
+      </div>
+      <div class="diagnostics-row">
+        <span class="diagnostic-dot"></span>
+        <span id="diagnosticsLabel">EventSub – · IRC – · Follows – · TikTok – · 0 Ereignisse</span>
+      </div>
+      <p id="twitchFollowErrorText" class="diagnostic-error hidden"></p>
+      <p id="tiktokErrorText" class="diagnostic-error hidden"></p>
+      <div class="account-row">
+        <span id="accountLabel">Nicht angemeldet</span>
+        <button id="reconnectButton" class="link-button">Neu verbinden</button>
+        <button id="logoutButton" class="link-button danger">Abmelden</button>
+      </div>
+      <p class="hotkey-help">Strg + Umschalt + H: ein-/ausblenden · C: Chat leeren</p>
+    </aside>
+  </main>
+  <script src="spam-filter.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -2,6 +2,12 @@
 
 Ein transparentes Windows-Overlay, das Twitch- und TikTok-LIVE-Chats gemeinsam über einem Spiel anzeigt. Das Fenster bleibt immer im Vordergrund und jederzeit bedienbar.
 
+## Korrekturen in Version 0.1.16
+
+- Einzelne Wörter (Namen, Emote-Wörter, Ausrufe wie „aniimooooo“) werden nicht mehr übersetzt. DeepL hat bei ihnen Sprache und Bedeutung geraten.
+- Langgezogene Buchstaben („sooooo“) werden vor der Übersetzung gekürzt.
+- Erkennt DeepL bei kurzen Nachrichten eine unwahrscheinliche Sprache („ti amo“ als Guaraní), bleibt die Übersetzung erhalten, aber statt eines falschen Sprachkürzels wird nur die Zielsprache angezeigt.
+
 ## Neu in Version 0.1.15: Chat-Übersetzung mit DeepL
 
 Fremdsprachige Twitch- und TikTok-Nachrichten lassen sich automatisch übersetzen. Die Übersetzung erscheint klein unter der Originalnachricht.
@@ -53,10 +59,13 @@ In der Entwicklerversion (`npm start`) und in Builds ohne GitHub-Ziel sind Updat
 
 ### Neue Version veröffentlichen
 
-1. Einmalig: In `package.json` unter `build.publish` GitHub-Benutzer und Repository eintragen. Auf GitHub einen *Fine-grained Token* mit der Berechtigung **Contents: Read and write** für dieses Repository anlegen und lokal speichern: `setx GH_TOKEN "dein-token"`. Der Token gehört nicht in den Quellcode.
-2. Die Versionsnummer in `package.json` erhöhen. Updates erkennt die App nur an einer höheren Versionsnummer.
-3. `RELEASE-GITHUB.bat` ausführen. Es testet, baut Setup und portable EXE und lädt beides als **Entwurf** zu GitHub Releases hoch.
-4. Den Entwurf auf GitHub prüfen und **Publish release** klicken. Erst dann erhalten die installierten Apps das Update.
+Releases laufen automatisch über GitHub Actions (`.github/workflows/release.yml`):
+
+1. `RELEASE-GITHUB.bat` starten. Es prüft den Code, sichert offene Änderungen, erhöht die Versionsnummer (z. B. 0.1.16 → 0.1.17) und lädt Code und Versions-Tag zu GitHub hoch.
+2. GitHub testet, baut Setup und portable EXE und veröffentlicht das Release selbstständig. Den Fortschritt zeigt [github.com/MrYourself/1/actions](https://github.com/MrYourself/1/actions).
+3. Installierte Apps finden das Update innerhalb von vier Stunden, laden es im Hintergrund und installieren es beim Beenden.
+
+Ein persönlicher GitHub-Token ist dafür nicht mehr nötig. GitHub verwendet für den Build seinen eigenen, auf dieses Repository beschränkten Token.
 
 Ohne Code-Signatur zeigt Windows SmartScreen bei der ersten Installation „Unbekannter Herausgeber“. Die Updates selbst funktionieren trotzdem.
 
@@ -204,4 +213,4 @@ Ein normales Desktop-Overlay kann über randlosem Vollbild und Fenstermodus ange
 - Ein optionaler Euler-Stream-API-Key liegt ebenfalls verschlüsselt im Windows-Benutzerprofil
 - Chatverläufe und Einstellungen liegen ausschließlich im lokalen Windows-Benutzerprofil
 
-Durch die TikTok-Komponente steht Version 0.1.15 unter der GNU Affero General Public License 3.0. Der vollständige Quellcode wird zusammen mit jeder EXE bereitgestellt.
+Durch die TikTok-Komponente steht Version 0.1.16 unter der GNU Affero General Public License 3.0. Der vollständige Quellcode wird zusammen mit jeder EXE bereitgestellt.
