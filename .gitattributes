@@ -1,0 +1,6 @@
+# Source files always use LF, so tests and tools behave the same on every checkout.
+* text=auto eol=lf
+# Windows batch files need CRLF to run reliably in cmd.exe.
+*.bat text eol=crlf
+*.png binary
+*.ico binary

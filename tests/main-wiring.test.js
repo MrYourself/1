@@ -15,6 +15,7 @@ test('activates TikTok history before releasing buffered initial events', () => 
 });
 
 test('the Twitch metrics poll does not rebuild an unchanged chat history', () => {
-  const polling = source.match(/function startStreamHistoryPolling[\s\S]*?\n}\n/)?.[0] || '';
+  // Line-ending agnostic: CI checkouts on Windows may use CRLF.
+  const polling = source.match(/function startStreamHistoryPolling[\s\S]*?\r?\n}\r?\n/)?.[0] || '';
   assert.match(polling, /syncTwitchStreamHistory\(broadcaster, false, generation\)/);
 });
