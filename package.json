@@ -60,7 +60,7 @@
         "provider": "github",
         "owner": "MrYourself",
         "repo": "1",
-        "releaseType": "release"
+        "releaseType": "draft"
       }
     ]
   },

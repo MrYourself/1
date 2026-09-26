@@ -37,7 +37,16 @@ jobs:
 
       - run: npm run check
 
-      - name: Build and publish
+      # The installer and portable uploads run in parallel. Publishing directly makes
+      # each create its own release, so both upload into one draft first ...
+      - name: Build and upload to a draft release
         run: npx electron-builder --win nsis portable --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ... which is then published in one step. Installed apps only see it from here on.
+      - name: Publish the release
+        shell: bash
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
