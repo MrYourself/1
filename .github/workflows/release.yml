@@ -37,16 +37,18 @@ jobs:
 
       - run: npm run check
 
-      # The installer and portable uploads run in parallel. Publishing directly makes
-      # each create its own release, so both upload into one draft first ...
-      - name: Build and upload to a draft release
-        run: npx electron-builder --win nsis portable --x64 --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # electron-builder only builds. Its own parallel uploads (setup and portable)
+      # raced each other and split files across releases, so a single step below
+      # creates the release with every file at once.
+      - name: Build
+        run: npx electron-builder --win nsis portable --x64 --publish never
 
-      # ... which is then published in one step. Installed apps only see it from here on.
       - name: Publish the release
         shell: bash
-        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+        run: |
+          shopt -s nullglob
+          files=(dist/*.exe dist/*.exe.blockmap dist/latest.yml)
+          test -f dist/latest.yml || { echo "dist/latest.yml fehlt" >&2; exit 1; }
+          gh release create "$GITHUB_REF_NAME" "${files[@]}" --title "$GITHUB_REF_NAME" --generate-notes --latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
