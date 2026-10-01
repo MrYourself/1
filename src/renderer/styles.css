@@ -244,6 +244,10 @@ select:focus { border-color: var(--twitch); box-shadow: 0 0 0 3px rgba(145,70,25
 .settings-section > .toggle { margin: 4px 0 10px; }
 .captions-note { margin: 0 0 6px !important; }
 .update-status { margin: 0 !important; }
+.url-row { grid-template-columns: minmax(0, 1fr) auto; }
+.url-row input { user-select: text; }
+.captions-toggles { margin: 4px 0 10px; }
+input[type="color"] { width: 100%; height: 36px; padding: 3px; border: 1px solid var(--border); border-radius: 9px; background: rgba(255,255,255,.06); cursor: pointer; }
 .update-buttons { margin-top: 8px; flex-wrap: wrap; }
 .beta-tag { margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: rgba(145,70,255,.25); color: var(--twitch-soft); font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; vertical-align: 2px; }
 .field .level-meter { position: relative; display: block; height: 6px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.08); }

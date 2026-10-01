@@ -1,18 +1,16 @@
 'use strict';
 
-const LINE_LIMIT = 2;
-const LINE_SECONDS = 7;
 const LEVEL_INTERVAL_MS = 200;
 const SAMPLE_RATE = 16000;
 
 const container = document.getElementById('captions');
 const { createSpeechGate, gateThreshold, levelFromRms } = window.captionSpeechGate;
+const display = window.captionDisplay.createCaptionDisplay(container, document);
 
-let state = { fontSize: 30, background: 'dark', showOriginal: false, deviceId: '', gate: 40 };
+let state = { fontSize: 30, textColor: '#ffffff', box: true, background: 'dark', showOriginal: false, deviceId: '', gate: 40 };
 let audio = null;
 let activeDeviceId = null;
 let startGeneration = 0;
-let interimElement = null;
 let lastLevelAt = 0;
 let peakLevel = 0;
 
@@ -109,57 +107,14 @@ function handleFrame({ pcm, rms }) {
 }
 
 function applyState(next) {
-  state = { ...state, ...(next || {}) };
-  document.documentElement.style.setProperty('--caption-size', `${Number(state.fontSize) || 30}px`);
-  document.body.className = state.background === 'green' ? 'background-green' : 'background-dark';
-  for (const original of container.querySelectorAll('.caption-original')) {
-    original.classList.toggle('hidden', !state.showOriginal);
-  }
+  state = display.applyState({ ...state, ...(next || {}) });
+  document.body.classList.toggle('background-green', state.background === 'green');
+  document.body.classList.toggle('background-dark', state.background !== 'green');
   if (activeDeviceId !== (state.deviceId || '')) startAudio();
-}
-
-function clearInterim() {
-  interimElement?.remove();
-  interimElement = null;
-}
-
-function showInterim({ text } = {}) {
-  if (!text) {
-    clearInterim();
-    return;
-  }
-  if (!interimElement) {
-    interimElement = document.createElement('div');
-    interimElement.className = 'caption-line interim';
-    container.append(interimElement);
-  }
-  interimElement.textContent = text;
-}
-
-function showLine(line) {
-  clearInterim();
-  if (!line?.text) return;
-  const element = document.createElement('div');
-  element.className = 'caption-line';
-  if (line.translated && line.original) {
-    const original = document.createElement('span');
-    original.className = 'caption-original';
-    original.classList.toggle('hidden', !state.showOriginal);
-    original.textContent = line.original;
-    element.append(original);
-  }
-  element.append(document.createTextNode(line.text));
-  container.append(element);
-  const finals = [...container.querySelectorAll('.caption-line:not(.interim)')];
-  for (const old of finals.slice(0, Math.max(0, finals.length - LINE_LIMIT))) old.remove();
-  window.setTimeout(() => {
-    element.classList.add('fading');
-    window.setTimeout(() => element.remove(), 500);
-  }, LINE_SECONDS * 1000);
 }
 
 navigator.mediaDevices.addEventListener('devicechange', reportDevices);
 window.captions.onState(applyState);
-window.captions.onInterim(showInterim);
-window.captions.onLine(showLine);
+window.captions.onInterim(display.showInterim);
+window.captions.onLine(display.showLine);
 window.captions.getState().then(applyState).catch(error => window.captions.reportAudioError(error.message));

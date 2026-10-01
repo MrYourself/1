@@ -25,6 +25,8 @@ const dom = Object.fromEntries([
   'deepgramApiKeyStatus', 'deepgramButton', 'captionsDeviceInput', 'captionsGateInput', 'captionsGateOutput',
   'captionsLevelBar', 'captionsGateMark', 'captionsTargetInput', 'captionsBackgroundInput', 'captionsFontSizeInput',
   'captionsFontSizeOutput', 'captionsOriginalInput', 'captionsErrorText',
+  'captionsUrlInput', 'copyCaptionsUrlButton', 'captionsUrlHelp', 'captionsTextColorInput', 'captionsBoxInput',
+  'captionsWindowInput', 'captionsBackgroundField',
   'updateStatusText', 'checkUpdateButton', 'installUpdateButton', 'downloadUpdateButton',
   'demoButton', 'clearButton', 'accountLabel', 'reconnectButton', 'logoutButton'
 ].map(id => [id, document.getElementById(id)]));
@@ -152,6 +154,12 @@ function applySettings(next) {
   dom.captionsBackgroundInput.value = settings.captionsBackground || 'dark';
   dom.captionsFontSizeInput.value = settings.captionsFontSize ?? 30;
   dom.captionsOriginalInput.checked = Boolean(settings.captionsShowOriginal);
+  dom.captionsTextColorInput.value = settings.captionsTextColor || '#ffffff';
+  dom.captionsBoxInput.checked = settings.captionsBox !== false;
+  dom.captionsWindowInput.checked = settings.captionsWindowVisible !== false;
+  dom.captionsBackgroundField.classList.toggle('hidden', settings.captionsWindowVisible === false);
+  dom.captionsUrlInput.value = settings.captionsUrl || '';
+  dom.copyCaptionsUrlButton.disabled = !settings.captionsUrl;
   updateOutputs();
   trimMessages();
   if (previousFade !== Number(settings.fadeSeconds || 0)) {
@@ -684,7 +692,10 @@ function settingsFromForm() {
     captionsTarget: dom.captionsTargetInput.value,
     captionsBackground: dom.captionsBackgroundInput.value,
     captionsFontSize: Number(dom.captionsFontSizeInput.value),
-    captionsShowOriginal: dom.captionsOriginalInput.checked
+    captionsShowOriginal: dom.captionsOriginalInput.checked,
+    captionsTextColor: dom.captionsTextColorInput.value,
+    captionsBox: dom.captionsBoxInput.checked,
+    captionsWindowVisible: dom.captionsWindowInput.checked
   };
 }
 
@@ -778,7 +789,8 @@ for (const input of [dom.timestampsInput, dom.compactInput, dom.botsInput, dom.c
 }
 for (const input of [dom.channelInput, dom.tiktokUsernameInput, dom.hiddenUsersInput, dom.blockedTermsInput,
   dom.translationInput, dom.translationTargetInput, dom.translationSkipInput,
-  dom.captionsInput, dom.captionsDeviceInput, dom.captionsTargetInput, dom.captionsBackgroundInput, dom.captionsOriginalInput]) {
+  dom.captionsInput, dom.captionsDeviceInput, dom.captionsTargetInput, dom.captionsBackgroundInput, dom.captionsOriginalInput,
+  dom.captionsBoxInput, dom.captionsWindowInput]) {
   input.addEventListener('change', () => queueSettingsSave(true));
 }
 dom.saveDeepgramApiKeyButton.addEventListener('click', async () => {
@@ -806,6 +818,18 @@ dom.clearDeepgramApiKeyButton.addEventListener('click', async () => {
   } catch (error) {
     dom.deepgramApiKeyStatus.textContent = `Entfernen fehlgeschlagen: ${error.message}`;
   }
+});
+// The color picker fires continuously while dragging; save debounced like the sliders.
+dom.captionsTextColorInput.addEventListener('input', () => queueSettingsSave());
+dom.copyCaptionsUrlButton.addEventListener('click', async () => {
+  const help = dom.captionsUrlHelp.textContent;
+  try {
+    await window.overlay.copyCaptionsUrl();
+    dom.captionsUrlHelp.textContent = 'Adresse kopiert. In OBS oder TikTok LIVE Studio einfügen.';
+  } catch (error) {
+    dom.captionsUrlHelp.textContent = error.message;
+  }
+  window.setTimeout(() => { dom.captionsUrlHelp.textContent = help; }, 4000);
 });
 dom.deepgramButton.addEventListener('click', () => window.overlay.openExternal('https://console.deepgram.com/').catch(error => addSystemMessage({ text: error.message, error: true })));
 dom.saveDeepLApiKeyButton.addEventListener('click', async () => {

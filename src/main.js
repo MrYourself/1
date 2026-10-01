@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell, globalShortcut, Tray, Menu, nativeImage, safeStorage, screen, net } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, globalShortcut, Tray, Menu, nativeImage, safeStorage, screen, net, clipboard } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const WebSocket = require('ws');
@@ -21,6 +21,7 @@ const { createDeepLTranslator } = require('./deepl-translator');
 const { createDeepgramStream } = require('./deepgram-client');
 const { buildCaption, interimText, parseDeepgramMessage } = require('./caption-transcript');
 const { createUpdater, releasesUrl } = require('./updater');
+const { createCaptionServer } = require('./caption-server');
 const {
   isAllowedExternalUrl,
   reconnectDelay,
@@ -65,6 +66,9 @@ const DEFAULT_SETTINGS = Object.freeze({
   captionsFontSize: 30,
   captionsGate: 40,
   captionsDeviceId: '',
+  captionsTextColor: '#ffffff',
+  captionsBox: true,
+  captionsWindowVisible: true,
   bounds: { width: 520, height: 760 }
 });
 const RECENT_MESSAGE_LIMIT = 500;
@@ -72,7 +76,8 @@ const HISTORY_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const CAPTIONS_DEFAULT_BOUNDS = Object.freeze({ width: 960, height: 170 });
 const CAPTIONS_MIN_WIDTH = 320;
 const CAPTIONS_MIN_HEIGHT = 90;
-const CAPTION_SETTING_KEYS = ['captionsEnabled', 'captionsShowOriginal', 'captionsBackground', 'captionsFontSize', 'captionsGate', 'captionsDeviceId'];
+const CAPTION_SETTING_KEYS = ['captionsEnabled', 'captionsShowOriginal', 'captionsBackground', 'captionsFontSize', 'captionsGate',
+  'captionsDeviceId', 'captionsTextColor', 'captionsBox', 'captionsWindowVisible'];
 
 let mainWindow;
 let tray;
@@ -97,6 +102,7 @@ let captionStream = null;
 let captionQueue = Promise.resolve();
 let captionSequence = 0;
 let captionDevices = [];
+let captionServer = null;
 let updater = null;
 let updateReleasesUrl = null;
 let announcedUpdate = null;
@@ -436,12 +442,16 @@ function captionsPublicState() {
     background: settings.captionsBackground,
     showOriginal: settings.captionsShowOriginal,
     deviceId: settings.captionsDeviceId,
-    gate: settings.captionsGate
+    gate: settings.captionsGate,
+    textColor: settings.captionsTextColor,
+    box: settings.captionsBox
   };
 }
 
+// Captions go to both displays: the capture window and the browser-source page.
 function sendCaptions(channel, payload) {
   if (captionsWindow && !captionsWindow.isDestroyed()) captionsWindow.webContents.send(channel, payload);
+  captionServer?.broadcast(channel.replace('captions:', ''), payload);
 }
 
 function setCaptionStatus({ state, message }) {
@@ -521,7 +531,9 @@ function createCaptionsWindow() {
   captionWindow.loadFile(path.join(__dirname, 'captions', 'index.html')).catch(error => {
     setCaptionStatus({ state: 'error', message: `Untertitel-Fenster konnte nicht geladen werden: ${error.message}` });
   });
-  captionWindow.once('ready-to-show', () => captionWindow.showInactive());
+  captionWindow.once('ready-to-show', () => {
+    if (settings.captionsWindowVisible) captionWindow.showInactive();
+  });
 
   let boundsTimer;
   const rememberBounds = () => {
@@ -546,15 +558,29 @@ function createCaptionsWindow() {
   });
 }
 
+function startCaptionServer() {
+  if (!captionServer || captionServer.url) return;
+  captionServer.start()
+    .then(() => send('settings:changed', publicSettings()))
+    .catch(error => reportStorageError('Untertitel-Browserquelle konnte nicht gestartet werden', error));
+}
+
 function applyCaptions() {
   if (!settings?.captionsEnabled) {
     captionStream?.stop();
+    captionServer?.stop().catch(() => {});
     connectionDiagnostics.captionsAudioError = null;
     if (captionsWindow && !captionsWindow.isDestroyed()) captionsWindow.close();
     setCaptionStatus({ state: 'off', message: null });
     return;
   }
+  startCaptionServer();
+  // The window also records the microphone, so it keeps running while hidden.
   createCaptionsWindow();
+  if (captionsWindow.isVisible() !== Boolean(settings.captionsWindowVisible)) {
+    if (settings.captionsWindowVisible) captionsWindow.showInactive();
+    else captionsWindow.hide();
+  }
   sendCaptions('captions:state', captionsPublicState());
   if (!deepgramApiKey) {
     captionStream?.stop();
@@ -758,7 +784,8 @@ function publicSettings() {
     ...settings,
     tiktokApiKeyConfigured: Boolean(tiktokApiKey),
     deeplApiKeyConfigured: Boolean(deeplApiKey),
-    deepgramApiKeyConfigured: Boolean(deepgramApiKey)
+    deepgramApiKeyConfigured: Boolean(deepgramApiKey),
+    captionsUrl: captionServer?.url || null
   };
 }
 
@@ -2108,6 +2135,11 @@ function registerIpc() {
     send('settings:changed', next);
     return next;
   });
+  registerTrustedHandler('captions:copy-url', () => {
+    if (!captionServer?.url) throw new Error('Die Browserquelle läuft erst, wenn die Untertitel eingeschaltet sind.');
+    clipboard.writeText(captionServer.url);
+    return captionServer.url;
+  });
   registerTrustedHandler('captions:set-api-key', (_event, value) => {
     saveDeepgramApiKey(value);
     const next = publicSettings();
@@ -2187,6 +2219,11 @@ async function initializeApp() {
     onStatus: setTranslationStatus
   });
   deepgramApiKey = loadDeepgramApiKey();
+  captionServer = createCaptionServer({
+    root: path.join(__dirname, 'captions'),
+    getState: captionsPublicState,
+    onError: error => reportStorageError('Untertitel-Browserquelle', error)
+  });
   captionStream = createDeepgramStream({
     WebSocketImpl: WebSocket,
     getApiKey: () => deepgramApiKey,
@@ -2239,6 +2276,7 @@ if (singleInstanceLock) {
     closeIrcSocket();
     closeTikTokConnection();
     captionStream?.stop();
+    captionServer?.stop().catch(() => {});
     updater?.stop();
     clearInterval(streamPollTimer);
     clearInterval(tokenValidationTimer);

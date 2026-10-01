@@ -187,7 +187,15 @@
       <section class="settings-section" aria-labelledby="captionsHeading">
         <h3 id="captionsHeading">Stream-Untertitel <small class="beta-tag">Beta</small></h3>
         <label class="toggle"><input id="captionsInput" type="checkbox"><span></span>Untertitel-Fenster für den Stream</label>
-        <p class="setting-note captions-note">Das Fenster „Stream-Untertitel“ in OBS und TikTok LIVE Studio als Fensteraufnahme hinzufügen. Gesprochenes Deutsch wird mit dem DeepL-Key übersetzt.</p>
+        <p class="setting-note captions-note">Gesprochenes Deutsch wird mit dem DeepL-Key übersetzt.</p>
+        <div class="field">
+          <span>Browserquelle <small>empfohlen · transparent, ohne Mauszeiger</small></span>
+          <div class="secret-row url-row">
+            <input id="captionsUrlInput" type="text" readonly spellcheck="false" placeholder="Wird angezeigt, sobald die Untertitel eingeschaltet sind" aria-label="Adresse der Browserquelle">
+            <button id="copyCaptionsUrlButton" type="button" class="secondary-button">Kopieren</button>
+          </div>
+          <small id="captionsUrlHelp" class="field-help">In OBS als Quelle „Browser“, in TikTok LIVE Studio als Quelle „Link“ einfügen. Breite und Höhe dort frei wählen, der Text bricht passend um.</small>
+        </div>
         <div class="field">
           <span>Deepgram-API-Key <small>Spracherkennung</small></span>
           <div class="secret-row">
@@ -227,18 +235,27 @@
             </select>
           </label>
           <label class="field">
-            <span>Hintergrund</span>
-            <select id="captionsBackgroundInput">
-              <option value="dark">Dunkler Balken</option>
-              <option value="green">Grün (für Chroma-Key)</option>
-            </select>
+            <span>Textfarbe</span>
+            <input id="captionsTextColorInput" type="color" value="#ffffff">
           </label>
           <label class="field full">
             <span>Untertitel-Schrift <output id="captionsFontSizeOutput"></output></span>
             <input id="captionsFontSizeInput" type="range" min="16" max="72" step="1">
           </label>
         </div>
-        <label class="toggle"><input id="captionsOriginalInput" type="checkbox"><span></span>Original über der Übersetzung anzeigen</label>
+        <div class="toggle-list captions-toggles">
+          <label class="toggle"><input id="captionsBoxInput" type="checkbox"><span></span>Dunkler Kasten hinter dem Text</label>
+          <label class="toggle"><input id="captionsOriginalInput" type="checkbox"><span></span>Original über der Übersetzung</label>
+          <label class="toggle"><input id="captionsWindowInput" type="checkbox"><span></span>Zusätzliches Aufnahmefenster</label>
+        </div>
+        <label class="field" id="captionsBackgroundField">
+          <span>Hintergrund des Aufnahmefensters</span>
+          <select id="captionsBackgroundInput">
+            <option value="dark">Dunkler Balken</option>
+            <option value="green">Grün (für Chroma-Key)</option>
+          </select>
+          <small class="field-help">Nur für die Fensteraufnahme. Dort in der Quelle „Mauszeiger aufnehmen“ ausschalten.</small>
+        </label>
         <p id="captionsErrorText" class="diagnostic-error hidden"></p>
       </section>
 

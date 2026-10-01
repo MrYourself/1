@@ -1,7 +1,7 @@
 :root {
   --caption-size: 30px;
   --caption-text: #ffffff;
-  --caption-muted: rgba(255, 255, 255, .62);
+  --caption-muted-opacity: .62;
   --caption-box: rgba(8, 8, 12, .82);
 }
 
@@ -14,14 +14,16 @@ html, body {
   overflow: hidden;
   font-family: "Segoe UI", system-ui, sans-serif;
   user-select: none;
-  /* The whole window can be moved; there is no title bar that could appear on stream. */
-  -webkit-app-region: drag;
 }
 
-/* A solid background works with every window capture, including TikTok LIVE Studio. */
+/* Capture window: the whole window can be moved; there is no title bar that could appear on stream. */
+body.capture-window { -webkit-app-region: drag; }
+/* A solid background works with every window capture. */
 body.background-dark { background: #0e0d13; }
-/* Pure green for a chroma-key filter in OBS; the text keeps its own dark boxes. */
+/* Pure green for a chroma-key filter. */
 body.background-green { background: #00ff00; }
+/* Browser source: truly transparent, no key needed. */
+body.browser-source { background: transparent; }
 
 .captions {
   display: flex;
@@ -41,24 +43,29 @@ body.background-green { background: #00ff00; }
   font-weight: 650;
   line-height: 1.22;
   overflow-wrap: anywhere;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, .7);
+  /* Without a box the text needs a strong outline to stay readable on any game. */
+  text-shadow:
+    0 0 .12em rgba(0, 0, 0, .95),
+    0 .06em .14em rgba(0, 0, 0, .9),
+    .05em 0 .1em rgba(0, 0, 0, .8),
+    -.05em 0 .1em rgba(0, 0, 0, .8);
   transition: opacity .45s ease;
 }
 
-.background-green .caption-line {
+.boxed .caption-line {
   padding: .08em .45em .12em;
   border-radius: .3em;
   background: var(--caption-box);
-  box-decoration-break: clone;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, .7);
 }
 
 .caption-original {
   display: block;
-  color: var(--caption-muted);
+  opacity: var(--caption-muted-opacity);
   font-size: .55em;
   font-weight: 500;
 }
 
 .caption-original.hidden { display: none; }
-.caption-line.interim { color: var(--caption-muted); }
+.caption-line.interim { opacity: var(--caption-muted-opacity); }
 .caption-line.fading { opacity: 0; }

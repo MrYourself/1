@@ -2,6 +2,12 @@
 
 Ein transparentes Windows-Overlay, das Twitch- und TikTok-LIVE-Chats gemeinsam über einem Spiel anzeigt. Das Fenster bleibt immer im Vordergrund und jederzeit bedienbar.
 
+## Neu in Version 0.2.1
+
+- Untertitel als **Browserquelle** für OBS („Browser“) und TikTok LIVE Studio („Link“): transparenter Hintergrund, kein Mauszeiger, frei wählbare Größe.
+- Einstellbare **Textfarbe** der Untertitel, dunkler Kasten hinter dem Text ein- und ausschaltbar.
+- Das Aufnahmefenster ist optional und lässt sich ausblenden.
+
 ## Korrekturen in Version 0.1.17 und 0.2.0
 
 - Version 0.2.0 liegt bewusst über den älteren Versionen 0.1.18 bis 0.1.20 mit dem früheren eigenen Update-Server. Updates laufen nur noch über GitHub Releases.
@@ -42,9 +48,18 @@ Diese Beta-Version erfasst das **Mikrofon**. Der Ton des Spiels (Voice-Chat) fol
 
 ### In OBS und TikTok LIVE Studio einbinden
 
-- **Fensteraufnahme** hinzufügen und das Fenster **„Stream-Untertitel“** auswählen. Das Fenster darf verdeckt sein, aber nicht minimiert werden.
-- **Dunkler Balken** (Standard): funktioniert überall. Die Quelle bei Bedarf passend zuschneiden.
-- **Grün (für Chroma-Key)**: In OBS einen Chroma-Key-Filter auf die Quelle legen. Die Untertitel behalten dann ihre eigenen dunklen Hintergrundkästen.
+**Empfohlen: Browserquelle.** Sobald die Untertitel eingeschaltet sind, zeigt **Einstellungen → Stream-Untertitel → Browserquelle** eine Adresse wie `http://127.0.0.1:17873/captions`. Mit **Kopieren** landet sie in der Zwischenablage.
+
+- **OBS:** Quelle **Browser** hinzufügen, Adresse einfügen, Breite und Höhe frei wählen (z. B. 1600 × 220).
+- **TikTok LIVE Studio:** Quelle **Link** hinzufügen und die Adresse einfügen.
+
+Die Browserquelle hat einen echten transparenten Hintergrund, zeigt keinen Mauszeiger, und der Text bricht passend zur gewählten Breite um. Die Adresse ist nur auf dem eigenen Rechner erreichbar.
+
+**Alternative: Fensteraufnahme.** Mit **Zusätzliches Aufnahmefenster** erscheint das Fenster „Stream-Untertitel“. Es wird als Fensteraufnahme eingebunden, dort **Mauszeiger aufnehmen** ausschalten. Das Fenster hat einen deckenden Hintergrund (dunkel oder Grün für einen Chroma-Key) und darf verdeckt, aber nicht minimiert sein. Wer nur die Browserquelle nutzt, kann das Fenster ausschalten; das Mikrofon läuft im Hintergrund weiter.
+
+### Aussehen
+
+**Textfarbe**, **Schriftgröße** und **Dunkler Kasten hinter dem Text** gelten für Browserquelle und Fenster gleichermaßen und ändern sich sofort. Ohne Kasten bekommt der Text eine dunkle Kontur, damit er auf jedem Spielbild lesbar bleibt.
 
 ### Kosten und Datenschutz
 

@@ -8,7 +8,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer/app.js && node --check src/captions-preload.js && node --check src/captions/captions.js && node --check src/captions/audio-worklet.js && node --test tests/*.test.js",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer/app.js && node --check src/captions-preload.js && node --check src/captions/captions.js && node --check src/captions/audio-worklet.js && node --check src/captions/display.js && node --check src/captions/web/overlay.js && node --test tests/*.test.js",
     "dist:win": "electron-builder --win portable nsis --x64",
     "release:win": "electron-builder --win nsis portable --x64 --publish always"
   },
