@@ -68,7 +68,7 @@ function sanitizeSettingsUpdate(update, normalizeTikTokUsername = value => Strin
   if (Array.isArray(update.translationSkipLanguages)) {
     result.translationSkipLanguages = normalizeLanguageList(update.translationSkipLanguages);
   }
-  for (const key of ['captionsEnabled', 'captionsShowOriginal', 'captionsBox', 'captionsWindowVisible']) {
+  for (const key of ['captionsEnabled', 'captionsShowOriginal', 'captionsBox', 'captionsWindowVisible', 'updateBeta']) {
     if (typeof update[key] === 'boolean') result[key] = update[key];
   }
   if (typeof update.captionsTarget === 'string') result.captionsTarget = normalizeTargetLanguage(update.captionsTarget, 'EN-US');

@@ -7,6 +7,7 @@ Ein transparentes Windows-Overlay, das Twitch- und TikTok-LIVE-Chats gemeinsam �
 - Untertitel als **Browserquelle** für OBS („Browser“) und TikTok LIVE Studio („Link“): transparenter Hintergrund, kein Mauszeiger, frei wählbare Größe.
 - Einstellbare **Textfarbe** der Untertitel, dunkler Kasten hinter dem Text ein- und ausschaltbar.
 - Das Aufnahmefenster ist optional und lässt sich ausblenden.
+- **Vorabversionen:** Unter **Einstellungen → Updates** lässt sich „Vorabversionen (Beta) erhalten“ einschalten. Ohne diesen Schalter bekommen Installationen nur stabile Versionen.
 
 ## Korrekturen in Version 0.1.17 und 0.2.0
 
@@ -82,6 +83,8 @@ Releases laufen automatisch über GitHub Actions (`.github/workflows/release.yml
 1. `RELEASE-GITHUB.bat` starten. Es prüft den Code, sichert offene Änderungen, erhöht die Versionsnummer (z. B. 0.1.16 → 0.1.17) und lädt Code und Versions-Tag zu GitHub hoch.
 2. GitHub testet, baut Setup und portable EXE und veröffentlicht das Release selbstständig. Den Fortschritt zeigt [github.com/MrYourself/1/actions](https://github.com/MrYourself/1/actions).
 3. Installierte Apps finden das Update innerhalb von vier Stunden, laden es im Hintergrund und installieren es beim Beenden.
+
+**Vorabversion:** Ein Tag mit Zusatz, z. B. `v0.2.1-beta.1`, wird auf GitHub als *Pre-release* veröffentlicht. Stabile Installationen ignorieren es; nur wer „Vorabversionen (Beta) erhalten“ eingeschaltet oder bereits eine Beta installiert hat, bekommt es automatisch.
 
 Ein persönlicher GitHub-Token ist dafür nicht mehr nötig. GitHub verwendet für den Build seinen eigenen, auf dieses Repository beschränkten Token.
 

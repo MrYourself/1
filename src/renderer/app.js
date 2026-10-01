@@ -27,7 +27,7 @@ const dom = Object.fromEntries([
   'captionsFontSizeOutput', 'captionsOriginalInput', 'captionsErrorText',
   'captionsUrlInput', 'copyCaptionsUrlButton', 'captionsUrlHelp', 'captionsTextColorInput', 'captionsBoxInput',
   'captionsWindowInput', 'captionsBackgroundField',
-  'updateStatusText', 'checkUpdateButton', 'installUpdateButton', 'downloadUpdateButton',
+  'updateStatusText', 'checkUpdateButton', 'installUpdateButton', 'downloadUpdateButton', 'updateBetaInput',
   'demoButton', 'clearButton', 'accountLabel', 'reconnectButton', 'logoutButton'
 ].map(id => [id, document.getElementById(id)]));
 
@@ -154,6 +154,7 @@ function applySettings(next) {
   dom.captionsBackgroundInput.value = settings.captionsBackground || 'dark';
   dom.captionsFontSizeInput.value = settings.captionsFontSize ?? 30;
   dom.captionsOriginalInput.checked = Boolean(settings.captionsShowOriginal);
+  dom.updateBetaInput.checked = Boolean(settings.updateBeta);
   dom.captionsTextColorInput.value = settings.captionsTextColor || '#ffffff';
   dom.captionsBoxInput.checked = settings.captionsBox !== false;
   dom.captionsWindowInput.checked = settings.captionsWindowVisible !== false;
@@ -695,7 +696,8 @@ function settingsFromForm() {
     captionsShowOriginal: dom.captionsOriginalInput.checked,
     captionsTextColor: dom.captionsTextColorInput.value,
     captionsBox: dom.captionsBoxInput.checked,
-    captionsWindowVisible: dom.captionsWindowInput.checked
+    captionsWindowVisible: dom.captionsWindowInput.checked,
+    updateBeta: dom.updateBetaInput.checked
   };
 }
 
@@ -790,7 +792,7 @@ for (const input of [dom.timestampsInput, dom.compactInput, dom.botsInput, dom.c
 for (const input of [dom.channelInput, dom.tiktokUsernameInput, dom.hiddenUsersInput, dom.blockedTermsInput,
   dom.translationInput, dom.translationTargetInput, dom.translationSkipInput,
   dom.captionsInput, dom.captionsDeviceInput, dom.captionsTargetInput, dom.captionsBackgroundInput, dom.captionsOriginalInput,
-  dom.captionsBoxInput, dom.captionsWindowInput]) {
+  dom.captionsBoxInput, dom.captionsWindowInput, dom.updateBetaInput]) {
   input.addEventListener('change', () => queueSettingsSave(true));
 }
 dom.saveDeepgramApiKeyButton.addEventListener('click', async () => {

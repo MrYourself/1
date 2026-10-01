@@ -69,6 +69,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   captionsTextColor: '#ffffff',
   captionsBox: true,
   captionsWindowVisible: true,
+  updateBeta: false,
   bounds: { width: 520, height: 760 }
 });
 const RECENT_MESSAGE_LIMIT = 500;
@@ -639,6 +640,7 @@ function createAppUpdater() {
     currentVersion: app.getVersion(),
     enabled,
     portable: Boolean(process.env.PORTABLE_EXECUTABLE_DIR),
+    prerelease: settings.updateBeta,
     onState: handleUpdateState
   });
 }
@@ -2095,9 +2097,14 @@ function registerIpc() {
     const oldShowTikTokSocials = settings.showTikTokSocials;
     const oldStreamSafe = settings.streamSafe;
     const oldCaptions = CAPTION_SETTING_KEYS.map(key => settings[key]);
+    const oldUpdateBeta = settings.updateBeta;
     settings = { ...settings, ...sanitizeSettingsUpdate(update, normalizeTikTokUsername) };
     saveSettings();
     send('settings:changed', publicSettings());
+    if (settings.updateBeta !== oldUpdateBeta) {
+      updater?.setPrerelease(settings.updateBeta);
+      updater?.check();
+    }
     if (CAPTION_SETTING_KEYS.some((key, index) => settings[key] !== oldCaptions[index])) {
       applyCaptions();
       rebuildTray();

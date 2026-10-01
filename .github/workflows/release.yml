@@ -47,8 +47,15 @@ jobs:
         shell: bash
         run: |
           shopt -s nullglob
-          files=(dist/*.exe dist/*.exe.blockmap dist/latest.yml)
-          test -f dist/latest.yml || { echo "dist/latest.yml fehlt" >&2; exit 1; }
-          gh release create "$GITHUB_REF_NAME" "${files[@]}" --title "$GITHUB_REF_NAME" --generate-notes --latest
+          files=(dist/*.exe dist/*.exe.blockmap)
+          # Stable builds produce latest.yml, pre-releases (v1.2.3-beta.1) beta.yml.
+          channels=()
+          for channel in latest beta alpha; do
+            if [ -f "dist/$channel.yml" ]; then channels+=("dist/$channel.yml"); fi
+          done
+          if [ "${#channels[@]}" -eq 0 ]; then echo "Keine Update-Datei (latest.yml/beta.yml) in dist" >&2; exit 1; fi
+          # A pre-release never becomes "latest", so stable installations do not see it.
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then visibility=(--prerelease); else visibility=(--latest); fi
+          gh release create "$GITHUB_REF_NAME" "${files[@]}" "${channels[@]}" --title "$GITHUB_REF_NAME" --generate-notes "${visibility[@]}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

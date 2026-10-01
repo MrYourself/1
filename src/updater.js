@@ -9,6 +9,10 @@ function releasesUrl(publish) {
   return `https://github.com/${config.owner}/${config.repo}/releases/latest`;
 }
 
+function isPrerelease(version) {
+  return String(version || '').includes('-');
+}
+
 function errorText(error) {
   const message = String(error?.message || error || 'Unbekannter Fehler');
   if (/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|net::ERR_/i.test(message)) return 'Keine Verbindung zum Update-Server.';
@@ -26,6 +30,7 @@ function createUpdater({
   currentVersion,
   enabled,
   portable = false,
+  prerelease = false,
   onState = () => {},
   setTimer = setTimeout,
   setRepeat = setInterval,
@@ -44,7 +49,9 @@ function createUpdater({
   if (enabled) {
     autoUpdater.autoDownload = !portable;
     autoUpdater.autoInstallOnAppQuit = !portable;
-    autoUpdater.allowPrerelease = false;
+    // An installed pre-release keeps following pre-releases; stable installs only
+    // see them when the user opted in.
+    autoUpdater.allowPrerelease = isPrerelease(currentVersion) || prerelease === true;
     autoUpdater.allowDowngrade = false;
     autoUpdater.logger = null;
     autoUpdater.on('checking-for-update', () => update({ status: 'checking', error: null }));
@@ -93,6 +100,10 @@ function createUpdater({
     repeatTimer = null;
   }
 
+  function setPrerelease(value) {
+    if (enabled) autoUpdater.allowPrerelease = isPrerelease(currentVersion) || value === true;
+  }
+
   function installNow() {
     if (state.status !== 'ready') return false;
     // Silent install, then start the new version again.
@@ -103,10 +114,11 @@ function createUpdater({
   return {
     check,
     installNow,
+    setPrerelease,
     start,
     stop,
     get state() { return { ...state }; }
   };
 }
 
-module.exports = { CHECK_INTERVAL_MS, FIRST_CHECK_DELAY_MS, createUpdater, errorText, releasesUrl };
+module.exports = { CHECK_INTERVAL_MS, FIRST_CHECK_DELAY_MS, createUpdater, errorText, isPrerelease, releasesUrl };

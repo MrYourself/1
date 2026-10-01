@@ -3,9 +3,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
-const { createUpdater, errorText, releasesUrl } = require('../src/updater');
+const { createUpdater, errorText, isPrerelease, releasesUrl } = require('../src/updater');
 
-function harness({ enabled = true, portable = false, checkResult } = {}) {
+function harness({ enabled = true, portable = false, prerelease = false, currentVersion = '0.1.15', checkResult } = {}) {
   const autoUpdater = new EventEmitter();
   autoUpdater.checks = 0;
   autoUpdater.installs = [];
@@ -19,9 +19,10 @@ function harness({ enabled = true, portable = false, checkResult } = {}) {
   const timers = [];
   const updater = createUpdater({
     autoUpdater,
-    currentVersion: '0.1.15',
+    currentVersion,
     enabled,
     portable,
+    prerelease,
     onState: state => states.push(state),
     setTimer: (callback, ms) => timers.push({ callback, ms }),
     setRepeat: (callback, ms) => { const timer = { callback, ms, repeat: true }; timers.push(timer); return timer; },
@@ -70,6 +71,24 @@ test('portable builds only announce new versions', () => {
   autoUpdater.emit('update-available', { version: '0.1.16' });
   assert.equal(updater.state.status, 'available');
   assert.equal(updater.state.version, '0.1.16');
+});
+
+test('stable installs ignore pre-releases unless the user opts in', () => {
+  const stable = harness();
+  assert.equal(stable.autoUpdater.allowPrerelease, false);
+  stable.updater.setPrerelease(true);
+  assert.equal(stable.autoUpdater.allowPrerelease, true);
+  stable.updater.setPrerelease(false);
+  assert.equal(stable.autoUpdater.allowPrerelease, false);
+  assert.equal(harness({ prerelease: true }).autoUpdater.allowPrerelease, true);
+});
+
+test('an installed pre-release keeps following pre-releases', () => {
+  const beta = harness({ currentVersion: '0.2.1-beta.1' });
+  assert.equal(beta.autoUpdater.allowPrerelease, true);
+  beta.updater.setPrerelease(false);
+  assert.equal(beta.autoUpdater.allowPrerelease, true, 'opting out cannot strand a beta install');
+  assert.equal(isPrerelease('0.2.1'), false);
 });
 
 test('disabled updater never touches electron-updater', async () => {
