@@ -1,6 +1,6 @@
 {
   "name": "twitch-chat-overlay",
-  "version": "0.2.1-beta.1",
+  "version": "0.2.1-beta.2",
   "description": "Transparentes Twitch- und TikTok-Livechat-Overlay für Windows",
   "main": "src/main.js",
   "author": "Jonas",
@@ -53,7 +53,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "artifactName": "Twitch-Chat-Overlay-Setup-${version}.${ext}"
     },
     "publish": [
       {
@@ -62,7 +63,10 @@
         "repo": "1",
         "releaseType": "draft"
       }
-    ]
+    ],
+    "portable": {
+      "artifactName": "Twitch-Chat-Overlay-${version}.${ext}"
+    }
   },
   "allowScripts": {
     "electron@44.1.0": true

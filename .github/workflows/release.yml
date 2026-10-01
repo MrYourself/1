@@ -54,6 +54,14 @@ jobs:
             if [ -f "dist/$channel.yml" ]; then channels+=("dist/$channel.yml"); fi
           done
           if [ "${#channels[@]}" -eq 0 ]; then echo "Keine Update-Datei (latest.yml/beta.yml) in dist" >&2; exit 1; fi
+          # Every file the update manifest points to must exist under exactly that name;
+          # otherwise installed apps would find the release but fail to download it.
+          for manifest in "${channels[@]}"; do
+            while IFS= read -r name; do
+              name="${name//[[:cntrl:]]/}"
+              if [ ! -f "dist/$name" ]; then echo "$manifest verweist auf dist/$name, die Datei fehlt" >&2; exit 1; fi
+            done < <(sed -n 's/^ *- url: //p; s/^path: //p' "$manifest")
+          done
           # A pre-release never becomes "latest", so stable installations do not see it.
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then visibility=(--prerelease); else visibility=(--latest); fi
           gh release create "$GITHUB_REF_NAME" "${files[@]}" "${channels[@]}" --title "$GITHUB_REF_NAME" --generate-notes "${visibility[@]}"
