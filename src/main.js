@@ -456,9 +456,20 @@ function captionsPublicState() {
 }
 
 // Captions go to both displays: the capture window and the browser-source page.
+// The browser-source page only needs the appearance, not microphone settings.
+function captionsDisplayState() {
+  return {
+    fontSize: settings.captionsFontSize,
+    textColor: settings.captionsTextColor,
+    box: settings.captionsBox,
+    showOriginal: settings.captionsShowOriginal
+  };
+}
+
 function sendCaptions(channel, payload) {
   if (captionsWindow && !captionsWindow.isDestroyed()) captionsWindow.webContents.send(channel, payload);
-  captionServer?.broadcast(channel.replace('captions:', ''), payload);
+  const event = channel.replace('captions:', '');
+  captionServer?.broadcast(event, event === 'state' ? captionsDisplayState() : payload);
 }
 
 function setCaptionStatus({ state, message }) {
@@ -2269,7 +2280,7 @@ async function initializeApp() {
   deepgramApiKey = loadDeepgramApiKey();
   captionServer = createCaptionServer({
     root: path.join(__dirname, 'captions'),
-    getState: captionsPublicState,
+    getState: captionsDisplayState,
     onError: error => reportStorageError('Untertitel-Browserquelle', error),
     onClients: count => {
       if (connectionDiagnostics.captionsClients === count) return;
