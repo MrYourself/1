@@ -338,6 +338,22 @@ test('a rejected refresh without a newer stored login asks for a new login', asy
   assert.match(app.run('events[0]'), /Invalid refresh token/);
 });
 
+test('a confidential Twitch application is named as the reason instead of an expired login', async () => {
+  const app = mainContext();
+  app.run(`
+    settings.clientId = 'abcdefghij1234';
+    accessSession = { accessToken: 'a', refreshToken: 'same', expiresAt: 0, user: { id: '1', login: 'viewer' } };
+    fetchWithTimeout = async () => ({ ok: false, status: 400, text: async () => '{"status":400,"message":"missing client secret"}' });
+    loadSession = () => null;
+    recordAuthEvent = () => {};
+    var reasons = [];
+    requireNewTwitchLogin = reason => { reasons.push(reason); };
+  `);
+  await assert.rejects(app.run('refreshAccessToken()'), /Öffentlich/);
+  assert.equal(app.run('reasons.length'), 1);
+  assert.match(app.run('reasons[0]'), /Client-Typ „Öffentlich“ \(Public\)/);
+});
+
 test('IRC retries again if its token refresh fails during a reconnect', async () => {
   const app = mainContext();
   configureTwitch(app);

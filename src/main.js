@@ -37,6 +37,10 @@ const EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
 const IRC_URL = 'wss://irc-ws.chat.twitch.tv:443';
 const REQUIRED_SCOPES = ['user:read:chat', 'chat:read', 'moderator:read:followers'];
 const HTTP_TIMEOUT_MS = 15000;
+// Twitch only lets "Public" applications refresh a login without a client secret.
+const CONFIDENTIAL_CLIENT_REASON = 'Die Twitch-Anwendung zu dieser Client-ID hat den Client-Typ „Vertraulich“ (Confidential). ' +
+  'Damit läuft die Anmeldung nach wenigen Stunden ab. Bitte in der Twitch Developer Console eine neue Anwendung ' +
+  'mit dem Client-Typ „Öffentlich“ (Public) anlegen und deren Client-ID hier eintragen.';
 
 const DEFAULT_SETTINGS = Object.freeze({
   clientId: '',
@@ -1111,6 +1115,10 @@ async function performRefreshAccessToken() {
         throw new Error('Die Twitch-Anmeldung wurde gerade von einer anderen App-Instanz erneuert.');
       }
       recordAuthEvent(`Erneuerung abgelehnt (${response.status}): ${twitchErrorMessage(detail)}`);
+      if (/client secret/i.test(detail)) {
+        requireNewTwitchLogin(CONFIDENTIAL_CLIENT_REASON);
+        throw new Error(CONFIDENTIAL_CLIENT_REASON);
+      }
       requireNewTwitchLogin('Die Twitch-Anmeldung ist abgelaufen. Bitte erneut anmelden.');
       throw new Error('Die Twitch-Anmeldung ist abgelaufen. Bitte erneut anmelden.');
     }
@@ -1229,6 +1237,13 @@ async function pollDeviceToken(device, clientId, generation) {
       if (!settings.channel) settings.channel = validation.login;
       saveSettings();
       saveSession(accessSession);
+      // Refresh once right away. A wrongly configured Twitch application then fails
+      // here with a clear message instead of logging the user out hours later mid-stream.
+      try {
+        await refreshAccessToken();
+      } catch {
+        if (!accessSession) return;
+      }
       send('auth:success', publicState());
       send('app:state', publicState());
       // The login itself succeeded. Connection failures are reported and retried by
