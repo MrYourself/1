@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   collapseElongation,
+  comparable,
   createDeepLTranslator,
   deeplBaseUrl,
   likelyLanguage,
@@ -99,6 +100,29 @@ test('skips single stretched words like game names instead of letting DeepL gues
   await flush();
   assert.equal(requests.length, 0);
   assert.equal(collapseElongation('I am sooooo happy, aniimooooo!'), 'I am soo happy, aniimoo!');
+});
+
+test('recognizes stretched chat English locally instead of asking DeepL', async () => {
+  const { translator, requests, flush } = fakeTranslator({ options: { target: 'EN-US', skipLanguages: [] } });
+  const source = translationSource(message("hellooo I'm backkkkk[wow]"));
+  assert.equal(source.xml, "helloo I'm backk<x>[wow]</x>");
+  assert.equal(likelyLanguage(source.plain), 'EN');
+  assert.equal(await translator.translate(message("hellooo I'm backkkkk[wow]")), null);
+  await flush();
+  assert.equal(requests.length, 0);
+  assert.equal(likelyLanguage('me gusta mucho tu stream'), null, 'Spanish is not mistaken for English');
+});
+
+test('drops a translation that only tidies the spelling of the original', async () => {
+  const { translator, flush } = fakeTranslator({
+    options: { target: 'EN-US', skipLanguages: [] },
+    responses: [{ status: 200, body: { translations: [{ detected_source_language: 'NL', text: 'Omg, sweet kitty!' }] } }]
+  });
+  const pending = translator.translate(message('omggg sweeet kittyyy'));
+  await flush();
+  assert.equal(await pending, null);
+  assert.equal(comparable('helloo <x>[wow]</x> I&apos;m backk'), comparable("Hello, I'm back!"));
+  assert.equal(comparable('Grr flames'), comparable('Grr, flames'));
 });
 
 test('keeps a correct translation even when DeepL names an unlikely language', async () => {

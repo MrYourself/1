@@ -19,7 +19,13 @@ const STOPWORDS = {
   EN: new Set(['the', 'and', 'you', 'is', 'are', 'this', 'that', 'what', 'with', 'for', 'have', 'just', 'not', "it's",
     'im', "i'm", "don't", 'dont', 'can', 'your', 'but', 'how', 'why', 'be', 'do', 'it', 'of', 'to', 'my', 'me', 'we',
     'they', 'he', 'she', 'will', 'would', 'there', 'good', 'like', 'get', 'know', 'love', 'when', 'where', 'who',
-    'all', 'if', 'on', 'at', 'from', 'been', 'has', 'had', "you're", 'thanks', 'please', 'yes', 'nice', 'play']),
+    'all', 'if', 'on', 'at', 'from', 'been', 'has', 'had', "you're", 'thanks', 'please', 'yes', 'nice', 'play',
+    'hello', 'back', 'here', 'now', 'very', 'much', 'too', 'thank', 'welcome', 'cute', 'see', 'going', 'got', 'about',
+    'really', 'today', 'did', 'does', "that's", "what's", "let's", 'time', 'look', 'want', 'think', 'more', 'some',
+    'them', 'his', 'our', 'new', 'night', 'morning', 'great', 'awesome', 'happy', 'sorry', 'again', 'always', 'never',
+    'because', 'should', 'could', "can't", "i'll", "i've", 'were', 'their', 'than', 'then', 'these', 'those', 'which',
+    'while', 'only', 'even', 'any', 'every', 'first', 'last', 'little', 'right', 'people', 'guys', 'everyone',
+    'someone', 'something', 'nothing', 'tonight', 'yesterday', 'tomorrow', 'watching', 'playing', 'looks', 'looking']),
   DE: new Set(['der', 'die', 'das', 'und', 'ist', 'nicht', 'ich', 'du', 'ein', 'eine', 'mit', 'auf', 'für', 'zu',
     'den', 'dem', 'sie', 'es', 'wie', 'was', 'auch', 'noch', 'aber', 'bin', 'bist', 'hast', 'habe', 'mal', 'schon',
     'jetzt', 'hier', 'wir', 'ihr', 'mein', 'dein', 'kann', 'doch', 'nur', 'oder', 'sehr', 'gut', 'danke', 'bitte',
@@ -63,7 +69,8 @@ function unescapeXml(text) {
     .replace(/&amp;/g, '&');
 }
 
-const URL_PATTERN = /\bhttps?:\/\/\S+|\bwww\.\S+/gi;
+// Links and TikTok's text emotes ("[wow]") are kept out of the translation.
+const PROTECTED_PATTERN = /\bhttps?:\/\/\S+|\bwww\.\S+|\[[a-z_]{2,30}\]/gi;
 
 // Chat stretches words ("sooooo", "aniimoooo"). Unknown stretched words make DeepL
 // guess both language and meaning, so runs of three or more letters shrink to two.
@@ -87,7 +94,7 @@ function translationSource(message) {
       continue;
     }
     let cursor = 0;
-    for (const match of text.matchAll(URL_PATTERN)) {
+    for (const match of text.matchAll(PROTECTED_PATTERN)) {
       const before = collapseElongation(text.slice(cursor, match.index));
       xml += escapeXml(before);
       plain += before;
@@ -105,11 +112,27 @@ function translatedText(xml) {
   return unescapeXml(String(xml || '').replace(/<x>([\s\S]*?)<\/x>/g, '$1')).trim();
 }
 
+// Every run of the same letter becomes one letter, so "hellooo" and "backkkk" still
+// match "hello" and "back".
+function squeeze(text) {
+  return String(text).replace(/(\p{L})\1+/gu, '$1');
+}
+
+const SQUEEZED_STOPWORDS = Object.fromEntries(Object.entries(STOPWORDS)
+  .map(([language, stopwords]) => [language, new Set([...stopwords].map(squeeze))]));
+
+// What a line says, without emotes, punctuation, capitals and stretched letters. Two
+// lines with the same result differ only in spelling, not in language.
+function comparable(xml) {
+  const text = unescapeXml(String(xml || '').replace(/<x>[\s\S]*?<\/x>/g, ' ')).toLowerCase();
+  return squeeze(text.replace(/[^\p{L}\p{N}]+/gu, ' ')).trim();
+}
+
 function likelyLanguage(text) {
-  const words = String(text || '').toLowerCase().match(/[\p{L}']+/gu) || [];
+  const words = String(text || '').toLowerCase().replace(/[‘’]/g, "'").match(/[\p{L}']+/gu) || [];
   const hits = {};
   for (const [language, stopwords] of Object.entries(STOPWORDS)) {
-    hits[language] = words.filter(word => stopwords.has(word)).length;
+    hits[language] = words.filter(word => stopwords.has(word) || SQUEEZED_STOPWORDS[language].has(squeeze(word))).length;
   }
   const [best, second] = Object.entries(hits).sort((left, right) => right[1] - left[1]);
   if (!best || best[1] < 2 || best[1] < (second?.[1] || 0) * 2) return null;
@@ -225,8 +248,10 @@ function createDeepLTranslator({
         const translation = translations[index];
         const source = String(translation?.detected_source_language || '').toUpperCase();
         const text = translatedText(translation?.text);
+        // A "translation" that only tidies the spelling ("hellooo" → "Hello") means
+        // the message was already written in the target language.
         const skipped = !text || item.skip.includes(baseLanguage(source)) ||
-          text.toLowerCase() === translatedText(item.xml).toLowerCase();
+          comparable(translation?.text) === comparable(item.xml);
         // DeepL's detection is unreliable for short chat lines ("ti amo" → Guarani).
         // The translation is usually still right, so keep it but only show a
         // language label for well-established languages.
@@ -327,6 +352,7 @@ function createDeepLTranslator({
 module.exports = {
   TARGET_LANGUAGES,
   collapseElongation,
+  comparable,
   createDeepLTranslator,
   deeplBaseUrl,
   likelyLanguage,

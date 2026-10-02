@@ -27,7 +27,7 @@ const dom = Object.fromEntries([
   'captionsFontSizeOutput', 'captionsOriginalInput', 'captionsErrorText',
   'captionsUrlInput', 'copyCaptionsUrlButton', 'captionsUrlHelp', 'captionsTextColorInput', 'captionsBoxInput',
   'captionsWindowInput', 'captionsBackgroundField', 'captionsSourceStatus', 'captionsTestButton',
-  'updateStatusText', 'checkUpdateButton', 'installUpdateButton', 'downloadUpdateButton', 'updateBetaInput',
+  'updateStatusText', 'checkUpdateButton', 'installUpdateButton', 'downloadUpdateButton', 'updateBetaInput', 'updateInstallInput',
   'demoButton', 'clearButton', 'accountLabel', 'reconnectButton', 'logoutButton'
 ].map(id => [id, document.getElementById(id)]));
 
@@ -155,6 +155,8 @@ function applySettings(next) {
   dom.captionsFontSizeInput.value = settings.captionsFontSize ?? 30;
   dom.captionsOriginalInput.checked = Boolean(settings.captionsShowOriginal);
   dom.updateBetaInput.checked = Boolean(settings.updateBeta);
+  dom.updateInstallInput.value = settings.updateInstall || 'start';
+  renderUpdateState(lastUpdateState);
   dom.captionsTextColorInput.value = settings.captionsTextColor || '#ffffff';
   dom.captionsBoxInput.checked = settings.captionsBox !== false;
   dom.captionsWindowInput.checked = Boolean(settings.captionsWindowVisible);
@@ -201,8 +203,12 @@ function renderCaptionDevices() {
   dom.captionsDeviceInput.value = selected;
 }
 
+let lastUpdateState = null;
+
 function renderUpdateState(update) {
   if (!update) return;
+  lastUpdateState = update;
+  const manual = dom.updateInstallInput.value === 'manual';
   const current = update.currentVersion ? `Version ${update.currentVersion}` : 'Diese Version';
   const texts = {
     disabled: `${current} · Automatische Updates sind in dieser Ausführung nicht aktiv. Installiere einmal die aktuelle Version von github.com/MrYourself/1/releases, danach aktualisiert sich die App selbst.`,
@@ -210,12 +216,13 @@ function renderUpdateState(update) {
     checking: 'Suche nach Updates …',
     current: `${current} ist aktuell.`,
     downloading: `Update ${update.version || ''} wird im Hintergrund geladen … ${update.progress || 0} %`,
-    ready: `Update ${update.version} ist bereit und wird beim Beenden installiert.`,
-    available: `Version ${update.version} ist verfügbar. Die portable Version wird manuell ersetzt.`,
+    ready: `Update ${update.version} ist bereit${manual ? '.' : ' und wird beim Beenden installiert.'}`,
+    installing: `Update ${update.version} wird installiert. Das Overlay startet gleich neu.`,
+    available: `Version ${update.version} ist verfügbar${update.error ? `, konnte aber nicht automatisch geladen werden (${update.error})` : ''}. Bitte von der Download-Seite holen.`,
     error: update.error || 'Update fehlgeschlagen.'
   };
   dom.updateStatusText.textContent = texts[update.status] || current;
-  dom.checkUpdateButton.disabled = ['disabled', 'checking', 'downloading', 'ready'].includes(update.status);
+  dom.checkUpdateButton.disabled = ['disabled', 'checking', 'downloading', 'ready', 'installing'].includes(update.status);
   dom.installUpdateButton.classList.toggle('hidden', update.status !== 'ready');
   dom.downloadUpdateButton.classList.toggle('hidden', update.status !== 'available');
 }
@@ -716,7 +723,8 @@ function settingsFromForm() {
     captionsTextColor: dom.captionsTextColorInput.value,
     captionsBox: dom.captionsBoxInput.checked,
     captionsWindowVisible: dom.captionsWindowInput.checked,
-    updateBeta: dom.updateBetaInput.checked
+    updateBeta: dom.updateBetaInput.checked,
+    updateInstall: dom.updateInstallInput.value
   };
 }
 
@@ -811,7 +819,7 @@ for (const input of [dom.timestampsInput, dom.compactInput, dom.botsInput, dom.c
 for (const input of [dom.channelInput, dom.tiktokUsernameInput, dom.hiddenUsersInput, dom.blockedTermsInput,
   dom.translationInput, dom.translationTargetInput, dom.translationSkipInput,
   dom.captionsInput, dom.captionsDeviceInput, dom.captionsTargetInput, dom.captionsBackgroundInput, dom.captionsOriginalInput,
-  dom.captionsBoxInput, dom.captionsWindowInput, dom.updateBetaInput]) {
+  dom.captionsBoxInput, dom.captionsWindowInput, dom.updateBetaInput, dom.updateInstallInput]) {
   input.addEventListener('change', () => queueSettingsSave(true));
 }
 dom.saveDeepgramApiKeyButton.addEventListener('click', async () => {

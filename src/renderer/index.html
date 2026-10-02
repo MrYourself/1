@@ -265,6 +265,15 @@
       <section class="settings-section" aria-labelledby="updatesHeading">
         <h3 id="updatesHeading">Updates</h3>
         <p id="updateStatusText" class="setting-note update-status" aria-live="polite">Version wird ermittelt …</p>
+        <label class="field update-install">
+          <span>Updates installieren</span>
+          <select id="updateInstallInput">
+            <option value="start">Sofort beim Start (startet einmal neu)</option>
+            <option value="quit">Beim Beenden</option>
+            <option value="manual">Nur auf Knopfdruck</option>
+          </select>
+          <small class="field-help">Geladen wird immer im Hintergrund. Mitten im Stream startet das Overlay nie von selbst neu.</small>
+        </label>
         <label class="toggle update-beta"><input id="updateBetaInput" type="checkbox"><span></span>Vorabversionen (Beta) erhalten</label>
         <div class="button-row update-buttons">
           <button id="checkUpdateButton" type="button" class="secondary-button">Nach Updates suchen</button>

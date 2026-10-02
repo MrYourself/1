@@ -1,6 +1,7 @@
 'use strict';
 
 const { normalizeLanguageList, normalizeTargetLanguage } = require('./deepl-translator');
+const { INSTALL_MODES } = require('./updater');
 
 const EXTERNAL_HOSTS = new Set([
   'dev.twitch.tv',
@@ -71,6 +72,7 @@ function sanitizeSettingsUpdate(update, normalizeTikTokUsername = value => Strin
   for (const key of ['captionsEnabled', 'captionsShowOriginal', 'captionsBox', 'captionsWindowVisible', 'updateBeta']) {
     if (typeof update[key] === 'boolean') result[key] = update[key];
   }
+  if (INSTALL_MODES.includes(update.updateInstall)) result.updateInstall = update.updateInstall;
   if (typeof update.captionsTarget === 'string') result.captionsTarget = normalizeTargetLanguage(update.captionsTarget, 'EN-US');
   if (typeof update.captionsTextColor === 'string' && /^#[0-9a-f]{6}$/i.test(update.captionsTextColor)) {
     result.captionsTextColor = update.captionsTextColor.toLowerCase();

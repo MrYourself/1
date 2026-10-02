@@ -3,6 +3,7 @@
 const { app, BrowserWindow, ipcMain, shell, globalShortcut, Tray, Menu, nativeImage, safeStorage, screen, net, clipboard } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
 const { parseIrcLine, toChatEvent } = require('./twitch-irc');
 const {
@@ -21,6 +22,7 @@ const { createDeepLTranslator } = require('./deepl-translator');
 const { createDeepgramStream } = require('./deepgram-client');
 const { buildCaption, interimText, parseDeepgramMessage } = require('./caption-transcript');
 const { createUpdater, releasesUrl } = require('./updater');
+const { createPortableUpdate } = require('./portable-update');
 const { createCaptionServer } = require('./caption-server');
 const {
   isAllowedExternalUrl,
@@ -74,6 +76,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   captionsBox: true,
   captionsWindowVisible: false,
   updateBeta: false,
+  updateInstall: 'start',
   bounds: { width: 520, height: 760 }
 });
 const RECENT_MESSAGE_LIMIT = 500;
@@ -186,6 +189,10 @@ function deeplCredentialsPath() {
 
 function deepgramCredentialsPath() {
   return path.join(app.getPath('userData'), 'deepgram-credentials.json');
+}
+
+function updateAttemptPath() {
+  return path.join(app.getPath('userData'), 'update-attempt.json');
 }
 
 function readJson(file, fallback) {
@@ -663,17 +670,49 @@ function handleUpdateState(state) {
   if (announcedUpdate === announcement) return;
   if (state.status === 'ready') {
     announcedUpdate = announcement;
-    send('chat:system', { text: `Update ${state.version} ist bereit und wird beim Beenden installiert. Sofort installieren: Einstellungen → Updates.` });
+    const when = settings.updateInstall === 'manual' ? 'ist bereit' : 'ist bereit und wird beim Beenden installiert';
+    send('chat:system', { text: `Update ${state.version} ${when}. Sofort installieren: Einstellungen → Updates.` });
+  } else if (state.status === 'installing') {
+    announcedUpdate = announcement;
+    send('chat:system', { text: `Update ${state.version} wird installiert. Das Overlay startet gleich neu.` });
   } else if (state.status === 'available' && state.portable) {
     announcedUpdate = announcement;
     send('chat:system', { text: `Version ${state.version} ist verfügbar. Download: Einstellungen → Updates.` });
   }
 }
 
+// Starts the swapped portable file and ends this instance. The lock is released
+// first, otherwise the new instance would only hand focus to the old one and exit.
+function relaunchPortable() {
+  const executable = process.env.PORTABLE_EXECUTABLE_FILE;
+  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('PORTABLE_EXECUTABLE')));
+  app.releaseSingleInstanceLock();
+  spawn(executable, [], { detached: true, stdio: 'ignore', cwd: path.dirname(executable), env }).unref();
+  app.quit();
+}
+
+function createAppPortableUpdate(config) {
+  const executable = process.env.PORTABLE_EXECUTABLE_FILE;
+  if (!config || !executable) return null;
+  const portableUpdate = createPortableUpdate({
+    fetchImpl: (url, options) => net.fetch(url, options),
+    exePath: executable,
+    owner: config.owner,
+    repo: config.repo,
+    relaunch: relaunchPortable
+  });
+  portableUpdate.cleanup();
+  // The replaced version may still be closing right after an update.
+  setTimeout(() => portableUpdate.cleanup({ download: false }), 30000).unref();
+  return portableUpdate;
+}
+
 function createAppUpdater() {
   const config = readUpdateConfig();
   updateReleasesUrl = config ? releasesUrl(config) : null;
   const enabled = Boolean(updateReleasesUrl);
+  const attempt = readJson(updateAttemptPath(), null);
+  if (attempt?.version === app.getVersion()) fs.rmSync(updateAttemptPath(), { force: true });
   return createUpdater({
     // Loaded lazily: electron-updater needs a packaged Electron app.
     autoUpdater: enabled ? require('electron-updater').autoUpdater : null,
@@ -681,6 +720,16 @@ function createAppUpdater() {
     enabled,
     portable: Boolean(process.env.PORTABLE_EXECUTABLE_DIR),
     prerelease: settings.updateBeta,
+    installMode: settings.updateInstall,
+    portableUpdate: enabled ? createAppPortableUpdate(config) : null,
+    mayInstallAtStart: version => readJson(updateAttemptPath(), null)?.version !== version,
+    onInstallAtStart: version => {
+      try {
+        writeJson(updateAttemptPath(), { version, at: new Date().toISOString() });
+      } catch (error) {
+        reportStorageError('Update-Versuch konnte nicht vermerkt werden', error);
+      }
+    },
     onState: handleUpdateState
   });
 }
@@ -2149,9 +2198,11 @@ function registerIpc() {
     const oldStreamSafe = settings.streamSafe;
     const oldCaptions = CAPTION_SETTING_KEYS.map(key => settings[key]);
     const oldUpdateBeta = settings.updateBeta;
+    const oldUpdateInstall = settings.updateInstall;
     settings = { ...settings, ...sanitizeSettingsUpdate(update, normalizeTikTokUsername) };
     saveSettings();
     send('settings:changed', publicSettings());
+    if (settings.updateInstall !== oldUpdateInstall) updater?.setInstallMode(settings.updateInstall);
     if (settings.updateBeta !== oldUpdateBeta) {
       updater?.setPrerelease(settings.updateBeta);
       updater?.check();
@@ -2341,6 +2392,7 @@ if (singleInstanceLock) {
     closeTikTokConnection();
     captionStream?.stop();
     captionServer?.stop().catch(() => {});
+    updater?.installOnQuit();
     updater?.stop();
     clearInterval(streamPollTimer);
     clearInterval(tokenValidationTimer);

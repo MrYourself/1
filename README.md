@@ -8,6 +8,8 @@ Ein transparentes Windows-Overlay, das Twitch- und TikTok-LIVE-Chats gemeinsam �
 - Untertitel als **Browserquelle** für OBS („Browser“) und TikTok LIVE Studio („Link“): transparenter Hintergrund, kein Mauszeiger, frei wählbare Größe.
 - Einstellbare **Textfarbe** der Untertitel, dunkler Kasten hinter dem Text ein- und ausschaltbar.
 - Das Aufnahmefenster ist optional und standardmäßig aus. Es erscheint nur, wenn „Zusätzliches Aufnahmefenster“ eingeschaltet wird.
+- **Updates:** Auswahl, wann Updates installiert werden (sofort beim Start, beim Beenden, nur auf Knopfdruck). Die portable Version aktualisiert sich jetzt selbst.
+- **Chat-Übersetzung:** Nachrichten, die schon in der Zielsprache geschrieben sind, werden auch mit langgezogenen Wörtern erkannt („hellooo I'm backkkkk“) und nicht mehr an DeepL geschickt. Liefert DeepL nur dieselbe Nachricht in sauberer Schreibweise zurück („Grr flames“ → „Grr, flames“), wird sie nicht angezeigt. TikTok-Emotes wie `[wow]` bleiben unübersetzt.
 - **Vorabversionen:** Unter **Einstellungen → Updates** lässt sich „Vorabversionen (Beta) erhalten“ einschalten. Ohne diesen Schalter bekommen Installationen nur stabile Versionen.
 
 ## Korrekturen in Version 0.1.17 und 0.2.0
@@ -71,9 +73,13 @@ Die Browserquelle hat einen echten transparenten Hintergrund, zeigt keinen Mausz
 
 ## Neu in Version 0.1.15: Automatische Updates
 
-Die **installierte Version** (Setup-EXE) sucht beim Start und danach alle vier Stunden auf GitHub Releases nach einer neuen Version. Ein Update wird im Hintergrund geladen, seine Prüfsumme kontrolliert und **beim Beenden** installiert. Die App startet nie ungefragt neu, ein laufender Stream wird also nicht unterbrochen. Ist ein Update bereit, erscheint ein Hinweis im Chat. Unter **Einstellungen → Updates** oder im Tray-Menü lässt es sich sofort installieren.
+Die App sucht beim Start und danach alle vier Stunden auf GitHub Releases nach einer neuen Version, lädt sie im Hintergrund und kontrolliert ihre Prüfsumme. Wann sie installiert wird, legt **Einstellungen → Updates → „Updates installieren“** fest (ab 0.2.1):
 
-Die **portable EXE** kann sich nicht selbst ersetzen. Sie meldet neue Versionen und öffnet auf Wunsch die Download-Seite.
+- **Sofort beim Start** (Standard): Ist das Update in den ersten drei Minuten nach dem Start fertig geladen, installiert die App es und startet einmal neu. Später gefundene Updates warten bis zum Beenden, ein laufender Stream wird also nicht unterbrochen. Schlägt die Installation fehl, versucht die App dieselbe Version nicht noch einmal von selbst.
+- **Beim Beenden:** Die App startet nie von selbst neu.
+- **Nur auf Knopfdruck:** Das Update liegt bereit, bis es unter **Einstellungen → Updates** oder im Tray-Menü installiert wird.
+
+Die **portable EXE** lädt die neue Datei ab 0.2.1 selbst herunter und ersetzt sich. Der Dateiname bleibt dabei gleich, Verknüpfungen funktionieren weiter. Die vorherige Version liegt bis zum nächsten Start als `.old` daneben. Ist der Ordner schreibgeschützt, bleibt es beim Hinweis mit Link zur Download-Seite.
 
 In der Entwicklerversion (`npm start`) und in Builds ohne GitHub-Ziel sind Updates abgeschaltet.
 
