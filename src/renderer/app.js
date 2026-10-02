@@ -157,8 +157,8 @@ function applySettings(next) {
   dom.updateBetaInput.checked = Boolean(settings.updateBeta);
   dom.captionsTextColorInput.value = settings.captionsTextColor || '#ffffff';
   dom.captionsBoxInput.checked = settings.captionsBox !== false;
-  dom.captionsWindowInput.checked = settings.captionsWindowVisible !== false;
-  dom.captionsBackgroundField.classList.toggle('hidden', settings.captionsWindowVisible === false);
+  dom.captionsWindowInput.checked = Boolean(settings.captionsWindowVisible);
+  dom.captionsBackgroundField.classList.toggle('hidden', !settings.captionsWindowVisible);
   dom.captionsUrlInput.value = settings.captionsUrl || '';
   dom.copyCaptionsUrlButton.disabled = !settings.captionsUrl;
   updateOutputs();

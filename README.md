@@ -7,7 +7,7 @@ Ein transparentes Windows-Overlay, das Twitch- und TikTok-LIVE-Chats gemeinsam �
 - **Twitch-Anmeldung:** Ist die Twitch-Anwendung mit dem Client-Typ „Vertraulich“ (Confidential) angelegt, meldet das Overlay das jetzt sofort bei der Anmeldung. Solche Anwendungen können die Anmeldung nicht ohne Client-Secret erneuern, was bisher nach einigen Stunden zu einer kommentarlosen Abmeldung führte. Benötigt wird der Client-Typ **„Öffentlich“ (Public)**.
 - Untertitel als **Browserquelle** für OBS („Browser“) und TikTok LIVE Studio („Link“): transparenter Hintergrund, kein Mauszeiger, frei wählbare Größe.
 - Einstellbare **Textfarbe** der Untertitel, dunkler Kasten hinter dem Text ein- und ausschaltbar.
-- Das Aufnahmefenster ist optional und lässt sich ausblenden.
+- Das Aufnahmefenster ist optional und standardmäßig aus. Es erscheint nur, wenn „Zusätzliches Aufnahmefenster“ eingeschaltet wird.
 - **Vorabversionen:** Unter **Einstellungen → Updates** lässt sich „Vorabversionen (Beta) erhalten“ einschalten. Ohne diesen Schalter bekommen Installationen nur stabile Versionen.
 
 ## Korrekturen in Version 0.1.17 und 0.2.0
@@ -57,7 +57,7 @@ Diese Beta-Version erfasst das **Mikrofon**. Der Ton des Spiels (Voice-Chat) fol
 
 Die Browserquelle hat einen echten transparenten Hintergrund, zeigt keinen Mauszeiger, und der Text bricht passend zur gewählten Breite um. Die Adresse ist nur auf dem eigenen Rechner erreichbar.
 
-**Alternative: Fensteraufnahme.** Mit **Zusätzliches Aufnahmefenster** erscheint das Fenster „Stream-Untertitel“. Es wird als Fensteraufnahme eingebunden, dort **Mauszeiger aufnehmen** ausschalten. Das Fenster hat einen deckenden Hintergrund (dunkel oder Grün für einen Chroma-Key) und darf verdeckt, aber nicht minimiert sein. Wer nur die Browserquelle nutzt, kann das Fenster ausschalten; das Mikrofon läuft im Hintergrund weiter.
+**Alternative: Fensteraufnahme.** Erst mit dem Schalter **Zusätzliches Aufnahmefenster** erscheint das Fenster „Stream-Untertitel“; ohne ihn bleibt es unsichtbar. Es wird als Fensteraufnahme eingebunden, dort **Mauszeiger aufnehmen** ausschalten. Das Fenster hat einen deckenden Hintergrund (dunkel oder Grün für einen Chroma-Key) und darf verdeckt, aber nicht minimiert sein. Wer nur die Browserquelle nutzt, kann das Fenster ausschalten; das Mikrofon läuft im Hintergrund weiter.
 
 ### Aussehen
 

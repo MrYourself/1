@@ -72,7 +72,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   captionsDeviceId: '',
   captionsTextColor: '#ffffff',
   captionsBox: true,
-  captionsWindowVisible: true,
+  captionsWindowVisible: false,
   updateBeta: false,
   bounds: { width: 520, height: 760 }
 });
