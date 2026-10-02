@@ -26,7 +26,7 @@ const dom = Object.fromEntries([
   'captionsLevelBar', 'captionsGateMark', 'captionsTargetInput', 'captionsBackgroundInput', 'captionsFontSizeInput',
   'captionsFontSizeOutput', 'captionsOriginalInput', 'captionsErrorText',
   'captionsUrlInput', 'copyCaptionsUrlButton', 'captionsUrlHelp', 'captionsTextColorInput', 'captionsBoxInput',
-  'captionsWindowInput', 'captionsBackgroundField',
+  'captionsWindowInput', 'captionsBackgroundField', 'captionsSourceStatus', 'captionsTestButton',
   'updateStatusText', 'checkUpdateButton', 'installUpdateButton', 'downloadUpdateButton', 'updateBetaInput',
   'demoButton', 'clearButton', 'accountLabel', 'reconnectButton', 'logoutButton'
 ].map(id => [id, document.getElementById(id)]));
@@ -161,6 +161,7 @@ function applySettings(next) {
   dom.captionsBackgroundField.classList.toggle('hidden', !settings.captionsWindowVisible);
   dom.captionsUrlInput.value = settings.captionsUrl || '';
   dom.copyCaptionsUrlButton.disabled = !settings.captionsUrl;
+  renderCaptionSourceStatus(lastDiagnostics);
   updateOutputs();
   trimMessages();
   if (previousFade !== Number(settings.fadeSeconds || 0)) {
@@ -183,6 +184,7 @@ function updateOutputs() {
 }
 
 let captionDevices = [];
+let lastDiagnostics = {};
 
 function renderCaptionDevices() {
   const selected = state.settings.captionsDeviceId || '';
@@ -216,6 +218,21 @@ function renderUpdateState(update) {
   dom.checkUpdateButton.disabled = ['disabled', 'checking', 'downloading', 'ready'].includes(update.status);
   dom.installUpdateButton.classList.toggle('hidden', update.status !== 'ready');
   dom.downloadUpdateButton.classList.toggle('hidden', update.status !== 'available');
+}
+
+// An opened page in a normal browser counts as a connected source too.
+function renderCaptionSourceStatus(diagnostics) {
+  const clients = Number(diagnostics.captionsClients) || 0;
+  const running = Boolean(state.settings.captionsUrl);
+  dom.captionsSourceStatus.classList.toggle('connected', running && clients > 0);
+  dom.captionsTestButton.disabled = !running;
+  if (!running) {
+    dom.captionsSourceStatus.textContent = 'Die Browserquelle läuft, sobald die Untertitel eingeschaltet sind.';
+  } else if (clients === 0) {
+    dom.captionsSourceStatus.textContent = 'Browserquelle läuft, aber es ist noch keine Quelle verbunden. Adresse in OBS oder TikTok LIVE Studio einfügen.';
+  } else {
+    dom.captionsSourceStatus.textContent = clients === 1 ? 'Browserquelle läuft · 1 Quelle verbunden' : `Browserquelle läuft · ${clients} Quellen verbunden`;
+  }
 }
 
 function showCaptionLevel({ level = 0, speaking = false } = {}) {
@@ -256,7 +273,9 @@ function updateDiagnostics(diagnostics) {
   dom.tiktokErrorText.classList.toggle('hidden', !diagnostics.tiktokError);
   dom.translationErrorText.textContent = diagnostics.translationError || '';
   dom.translationErrorText.classList.toggle('hidden', !diagnostics.translationError);
-  const captionsError = diagnostics.captionsAudioError || diagnostics.captionsError || '';
+  const captionsError = diagnostics.captionsServerError || diagnostics.captionsAudioError || diagnostics.captionsError || '';
+  lastDiagnostics = diagnostics;
+  renderCaptionSourceStatus(diagnostics);
   dom.captionsErrorText.textContent = captionsError;
   dom.captionsErrorText.classList.toggle('hidden', !captionsError);
   const row = dom.diagnosticsLabel.closest('.diagnostics-row');
@@ -832,6 +851,18 @@ dom.copyCaptionsUrlButton.addEventListener('click', async () => {
     dom.captionsUrlHelp.textContent = error.message;
   }
   window.setTimeout(() => { dom.captionsUrlHelp.textContent = help; }, 4000);
+});
+dom.captionsTestButton.addEventListener('click', async () => {
+  const previous = dom.captionsSourceStatus.textContent;
+  try {
+    const clients = await window.overlay.testCaptions();
+    dom.captionsSourceStatus.textContent = clients > 0
+      ? 'Testzeile gesendet. Sie sollte jetzt für einige Sekunden in der Quelle erscheinen.'
+      : 'Testzeile gesendet, aber es ist keine Quelle verbunden. Stimmt die Adresse in OBS oder TikTok LIVE Studio?';
+  } catch (error) {
+    dom.captionsSourceStatus.textContent = error.message;
+  }
+  window.setTimeout(() => { dom.captionsSourceStatus.textContent = previous; }, 6000);
 });
 dom.deepgramButton.addEventListener('click', () => window.overlay.openExternal('https://console.deepgram.com/').catch(error => addSystemMessage({ text: error.message, error: true })));
 dom.saveDeepLApiKeyButton.addEventListener('click', async () => {

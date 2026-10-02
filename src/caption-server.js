@@ -27,12 +27,14 @@ const SECURITY_HEADERS = {
 
 // Serves the caption overlay for browser sources. It binds to the loopback address
 // only and exposes nothing but the display page and the caption lines themselves.
-function createCaptionServer({ root, getState, port = DEFAULT_PORT, onError = () => {} }) {
+function createCaptionServer({ root, getState, port = DEFAULT_PORT, onError = () => {}, onClients = () => {} }) {
   const clients = new Set();
   let server = null;
   let heartbeat = null;
   let activePort = null;
   let lastInterim = '';
+  let starting = null;
+  let wanted = false;
 
   function allowedHost(request) {
     // Rejects DNS-rebinding attempts: only loopback names may address this server.
@@ -55,9 +57,12 @@ function createCaptionServer({ root, getState, port = DEFAULT_PORT, onError = ()
       Connection: 'keep-alive'
     });
     clients.add(response);
+    onClients(clients.size);
     write(response, 'state', getState());
     if (lastInterim) write(response, 'interim', { text: lastInterim });
-    request.on('close', () => clients.delete(response));
+    request.on('close', () => {
+      if (clients.delete(response)) onClients(clients.size);
+    });
   }
 
   function handle(request, response) {
@@ -100,33 +105,59 @@ function createCaptionServer({ root, getState, port = DEFAULT_PORT, onError = ()
     });
   }
 
-  async function start() {
-    if (server) return url();
+  // Ports to try, in order. A fixed port keeps the URL in OBS valid across restarts.
+  // Windows reserves port ranges on some machines (Hyper-V, WSL, Docker) and then
+  // answers EACCES, so those are skipped like occupied ports. A random free port is
+  // the last resort: captions work, but the URL changes with every start.
+  function candidates() {
+    if (port === 0) return [0];
+    const list = [];
+    for (let attempt = 0; attempt < PORT_ATTEMPTS; attempt += 1) list.push(port + attempt);
+    return [...list, 0];
+  }
+
+  async function open() {
     let lastError = null;
-    // A fixed port keeps the URL in OBS valid across restarts; nearby ports are a fallback.
-    for (let attempt = 0; attempt < PORT_ATTEMPTS; attempt += 1) {
+    for (const candidate of candidates()) {
       try {
-        server = await listen(port === 0 ? 0 : port + attempt);
-        break;
+        return await listen(candidate);
       } catch (error) {
         lastError = error;
-        if (error?.code !== 'EADDRINUSE' || port === 0) break;
+        if (!['EADDRINUSE', 'EACCES'].includes(error?.code)) break;
       }
     }
-    if (!server) throw lastError || new Error('Untertitel-Server konnte nicht gestartet werden.');
-    activePort = server.address().port;
-    heartbeat = setInterval(() => {
-      for (const client of clients) client.write(': keep-alive\n\n');
-    }, HEARTBEAT_MS);
-    heartbeat.unref?.();
-    return url();
+    throw lastError || new Error('Untertitel-Server konnte nicht gestartet werden.');
+  }
+
+  function start() {
+    wanted = true;
+    if (server) return Promise.resolve(url());
+    // Callers may ask again while the server is still starting; they share one attempt.
+    if (!starting) {
+      starting = open().then(instance => {
+        if (!wanted) {
+          instance.close();
+          return null;
+        }
+        server = instance;
+        activePort = instance.address().port;
+        heartbeat = setInterval(() => {
+          for (const client of clients) client.write(': keep-alive\n\n');
+        }, HEARTBEAT_MS);
+        heartbeat.unref?.();
+        return url();
+      }).finally(() => { starting = null; });
+    }
+    return starting;
   }
 
   function stop() {
+    wanted = false;
     clearInterval(heartbeat);
     heartbeat = null;
     for (const client of clients) client.end();
     clients.clear();
+    onClients(0);
     const closing = server;
     server = null;
     activePort = null;

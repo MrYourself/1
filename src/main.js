@@ -157,6 +157,8 @@ const connectionDiagnostics = {
   captions: 'off',
   captionsError: null,
   captionsAudioError: null,
+  captionsServerError: null,
+  captionsClients: 0,
   messagesReceived: 0,
   lastSource: null,
   lastError: null
@@ -566,8 +568,30 @@ function createCaptionsWindow() {
 function startCaptionServer() {
   if (!captionServer || captionServer.url) return;
   captionServer.start()
-    .then(() => send('settings:changed', publicSettings()))
-    .catch(error => reportStorageError('Untertitel-Browserquelle konnte nicht gestartet werden', error));
+    .then(() => {
+      connectionDiagnostics.captionsServerError = null;
+      emitDiagnostics();
+      send('settings:changed', publicSettings());
+    })
+    .catch(error => {
+      connectionDiagnostics.captionsServerError = `Die Browserquelle konnte nicht gestartet werden: ${error?.message || error}`;
+      emitDiagnostics();
+    });
+}
+
+// Lets the user verify the path into OBS or TikTok LIVE Studio without speaking
+// and without Deepgram being involved.
+function sendTestCaption() {
+  if (!settings.captionsEnabled) throw new Error('Bitte zuerst die Untertitel einschalten.');
+  sendCaptions('captions:line', {
+    sequence: ++captionSequence,
+    sourceId: 'test',
+    text: 'This is a test caption.',
+    original: 'Das ist ein Test-Untertitel.',
+    translated: true,
+    languages: ['de']
+  });
+  return connectionDiagnostics.captionsClients;
 }
 
 function applyCaptions() {
@@ -575,6 +599,7 @@ function applyCaptions() {
     captionStream?.stop();
     captionServer?.stop().catch(() => {});
     connectionDiagnostics.captionsAudioError = null;
+    connectionDiagnostics.captionsServerError = null;
     if (captionsWindow && !captionsWindow.isDestroyed()) captionsWindow.close();
     setCaptionStatus({ state: 'off', message: null });
     return;
@@ -2157,6 +2182,7 @@ function registerIpc() {
     send('settings:changed', next);
     return next;
   });
+  registerTrustedHandler('captions:test', () => sendTestCaption());
   registerTrustedHandler('captions:copy-url', () => {
     if (!captionServer?.url) throw new Error('Die Browserquelle läuft erst, wenn die Untertitel eingeschaltet sind.');
     clipboard.writeText(captionServer.url);
@@ -2244,7 +2270,12 @@ async function initializeApp() {
   captionServer = createCaptionServer({
     root: path.join(__dirname, 'captions'),
     getState: captionsPublicState,
-    onError: error => reportStorageError('Untertitel-Browserquelle', error)
+    onError: error => reportStorageError('Untertitel-Browserquelle', error),
+    onClients: count => {
+      if (connectionDiagnostics.captionsClients === count) return;
+      connectionDiagnostics.captionsClients = count;
+      emitDiagnostics();
+    }
   });
   captionStream = createDeepgramStream({
     WebSocketImpl: WebSocket,

@@ -82,6 +82,56 @@ test('pushes the current style on connect and caption lines as they happen', asy
   });
 });
 
+test('concurrent starts share one server instead of opening a second one', async () => {
+  const server = createCaptionServer({ root, port: 0, getState: () => ({}) });
+  try {
+    const [first, second] = await Promise.all([server.start(), server.start()]);
+    assert.equal(first, second);
+    assert.equal((await get(first)).status, 200);
+  } finally {
+    await server.stop();
+  }
+});
+
+test('moves to the next port when the preferred one is taken', async () => {
+  const blocker = http.createServer();
+  await new Promise(resolve => blocker.listen(0, '127.0.0.1', resolve));
+  const taken = blocker.address().port;
+  const server = createCaptionServer({ root, port: taken, getState: () => ({}) });
+  try {
+    const url = await server.start();
+    assert.notEqual(Number(new URL(url).port), taken);
+    assert.equal((await get(url)).status, 200);
+  } finally {
+    await server.stop();
+    await new Promise(resolve => blocker.close(resolve));
+  }
+});
+
+test('a stop during startup leaves no server behind', async () => {
+  const server = createCaptionServer({ root, port: 0, getState: () => ({}) });
+  const starting = server.start();
+  await server.stop();
+  assert.equal(await starting, null);
+  assert.equal(server.url, null);
+});
+
+test('reports how many sources are connected', async () => {
+  const counts = [];
+  const server = createCaptionServer({ root, port: 0, getState: () => ({}), onClients: count => counts.push(count) });
+  const url = new URL(await server.start());
+  try {
+    const request = http.get({ host: url.hostname, port: url.port, path: '/events' });
+    await new Promise((resolve, reject) => { request.on('response', resolve); request.on('error', reject); });
+    assert.deepEqual(counts, [1]);
+    request.destroy();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.deepEqual(counts, [1, 0]);
+  } finally {
+    await server.stop();
+  }
+});
+
 function fakeDocument() {
   function element() {
     const classes = new Set();
