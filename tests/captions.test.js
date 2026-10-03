@@ -59,6 +59,23 @@ test('falls back to the original when translation is unavailable', async () => {
   assert.equal(caption.translated, false);
 });
 
+test('leaves English alone when the recognizer mislabels it as another language', async () => {
+  const requests = [];
+  const words = text => text.split(' ').map(word => ({ text: word, language: 'de' }));
+  const obvious = await buildCaption(words('I think we should go over there now'), {
+    target: 'EN-US',
+    translate: async text => { requests.push(text); return 'I believe we ought to head over there now'; }
+  });
+  assert.deepEqual(requests, [], 'recognizably English text is not sent to DeepL');
+  assert.equal(obvious.text, 'I think we should go over there now');
+  assert.equal(obvious.translated, false);
+  assert.equal(interimText(words('I think we should go'), 'EN-US'), 'I think we should go');
+
+  const unchanged = await buildCaption(words('oh my god'), { target: 'EN-US', translate: async () => 'Oh my God!' });
+  assert.equal(unchanged.text, 'oh my god');
+  assert.equal(unchanged.translated, false, 'a translation that only tidies the text is dropped');
+});
+
 test('interim captions never show untranslated foreign text', () => {
   assert.equal(interimText([{ text: 'hello', language: 'en' }], 'EN-US'), 'hello');
   assert.equal(interimText([{ text: 'hallo', language: 'de' }], 'EN-US'), '…');

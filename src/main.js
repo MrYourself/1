@@ -502,7 +502,9 @@ function handleCaptionResult(message) {
   captionQueue = captionQueue
     .then(() => buildCaption(result.words, {
       target,
-      translate: (text, language) => translator ? translator.translateText(text, { source: language, target }) : null
+      // DeepL detects the language itself. The recognizer's tag is wrong too often,
+      // and a forced wrong source makes DeepL reword English into other English.
+      translate: text => translator ? translator.translateText(text, { target }) : null
     }))
     .then(caption => sendCaptions('captions:line', { sequence, sourceId: 'mic', ...caption }))
     .catch(() => {});

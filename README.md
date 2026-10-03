@@ -10,6 +10,7 @@ Ein transparentes Windows-Overlay, das Twitch- und TikTok-LIVE-Chats gemeinsam �
 - Das Aufnahmefenster ist optional und standardmäßig aus. Es erscheint nur, wenn „Zusätzliches Aufnahmefenster“ eingeschaltet wird.
 - **Updates:** Auswahl, wann Updates installiert werden (sofort beim Start, beim Beenden, nur auf Knopfdruck). Die portable Version aktualisiert sich jetzt selbst.
 - **Chat-Übersetzung:** Nachrichten, die schon in der Zielsprache geschrieben sind, werden auch mit langgezogenen Wörtern erkannt („hellooo I'm backkkkk“) und nicht mehr an DeepL geschickt. Liefert DeepL nur dieselbe Nachricht in sauberer Schreibweise zurück („Grr flames“ → „Grr, flames“), wird sie nicht angezeigt. TikTok-Emotes wie `[wow]` bleiben unübersetzt.
+- **Stream-Untertitel:** Englisch wird nicht mehr „ins Englische übersetzt“. Ordnet die Spracherkennung gesprochenes Englisch fälschlich einer anderen Sprache zu, bleibt der Text so stehen, wie er gesprochen wurde.
 - **Vorabversionen:** Unter **Einstellungen → Updates** lässt sich „Vorabversionen (Beta) erhalten“ einschalten. Ohne diesen Schalter bekommen Installationen nur stabile Versionen.
 
 ## Korrekturen in Version 0.1.17 und 0.2.0

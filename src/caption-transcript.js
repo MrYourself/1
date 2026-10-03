@@ -1,5 +1,7 @@
 'use strict';
 
+const { comparable, likelyLanguage } = require('./deepl-translator');
+
 function baseLanguage(code) {
   return String(code || '').toLowerCase().split('-')[0];
 }
@@ -57,27 +59,34 @@ function languageRuns(words) {
   return mergeAdjacent(smoothed);
 }
 
-function needsTranslation(language, target) {
+// The recognizer sometimes tags speech in the target language as another one
+// (English labelled German). DeepL would then "translate" English into reworded
+// English, so text that reads like the target language is left as spoken.
+function needsTranslation(language, target, text = '') {
   const source = baseLanguage(language);
-  return Boolean(source) && source !== baseLanguage(target);
+  if (!source || source === baseLanguage(target)) return false;
+  return baseLanguage(likelyLanguage(text)) !== baseLanguage(target);
 }
 
 // Interim results are shown immediately. Text that still needs a translation is
 // replaced by a typing indicator so viewers never read half-recognized German.
 function interimText(words, target) {
   if (!words?.length) return '';
-  if (words.some(word => needsTranslation(word.language, target))) return '…';
-  return words.map(word => word.text).join(' ');
+  const text = words.map(word => word.text).join(' ');
+  if (words.some(word => needsTranslation(word.language, target, text))) return '…';
+  return text;
 }
 
 async function buildCaption(words, { target, translate }) {
   const runs = languageRuns(words);
   const parts = await Promise.all(runs.map(async run => {
-    if (!needsTranslation(run.language, target)) return { text: run.text, translated: false };
+    if (!needsTranslation(run.language, target, run.text)) return { text: run.text, translated: false };
     let translated = null;
     try {
       translated = await translate(run.text, run.language.toUpperCase());
     } catch {}
+    // Same words back, only tidied: the run was already in the target language.
+    if (translated && comparable(translated) === comparable(run.text)) translated = null;
     return { text: translated || run.text, translated: Boolean(translated) };
   }));
   return {
