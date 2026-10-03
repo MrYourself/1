@@ -13,7 +13,7 @@ const dom = Object.fromEntries([
   'developerConsoleButton', 'authButton', 'deviceCodeBox', 'deviceCode', 'authError',
   'authReason', 'diagnosticsLabel',
   'channelInput', 'tiktokUsernameInput', 'tiktokApiKeyInput', 'saveTikTokApiKeyButton',
-  'clearTikTokApiKeyButton', 'tiktokApiKeyStatus', 'eulerButton', 'twitchFollowErrorText', 'tiktokErrorText',
+  'clearTikTokApiKeyButton', 'tiktokApiKeyStatus', 'eulerButton', 'tiktokLogButton', 'twitchFollowErrorText', 'tiktokErrorText',
   'fontSizeInput', 'fontSizeOutput', 'opacityInput', 'opacityOutput',
   'fadeInput', 'fadeOutput', 'maxMessagesInput', 'maxMessagesOutput', 'timestampsInput',
   'compactInput', 'botsInput', 'commandsInput', 'tiktokGiftsInput', 'tiktokSocialsInput', 'streamStatsInput', 'streamSafeInput',
@@ -764,6 +764,7 @@ dom.clearButton.addEventListener('click', () => window.overlay.clear().catch(err
 dom.demoButton.addEventListener('click', showDemoMessages);
 dom.reconnectButton.addEventListener('click', () => window.overlay.reconnect().catch(error => addSystemMessage({ text: error.message, error: true })));
 dom.logoutButton.addEventListener('click', () => window.overlay.logout().catch(error => addSystemMessage({ text: error.message, error: true })));
+dom.tiktokLogButton.addEventListener('click', () => window.overlay.openTikTokLog().catch(error => addSystemMessage({ text: error.message, error: true })));
 dom.eulerButton.addEventListener('click', () => window.overlay.openExternal('https://www.eulerstream.com/').catch(error => addSystemMessage({ text: error.message, error: true })));
 dom.saveTikTokApiKeyButton.addEventListener('click', async () => {
   const apiKey = dom.tiktokApiKeyInput.value.trim();

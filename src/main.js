@@ -12,7 +12,7 @@ const {
   normalizeTikTokGift,
   normalizeTikTokSocial
 } = require('./tiktok-normalizer');
-const { friendlyTikTokError, shouldRetryWithoutExtendedGiftInfo, tikTokRetryDelay } = require('./tiktok-errors');
+const { friendlyTikTokError, nestedErrorText, shouldRetryWithoutExtendedGiftInfo, tikTokRetryDelay } = require('./tiktok-errors');
 const { resolveTikTokRoomId, resolveTikTokRoomIdWithBrowser } = require('./tiktok-room');
 const { toTwitchFollowNotice } = require('./twitch-events');
 const { configureTikTokSigner } = require('./tiktok-signing');
@@ -817,15 +817,37 @@ function twitchErrorMessage(body) {
   }
 }
 
+function tiktokLogPath() {
+  return path.join(app.getPath('userData'), 'tiktok-events.log');
+}
+
 // Keeps the reasons for lost logins (never tokens), so a forced re-login can be explained.
 function recordAuthEvent(message) {
+  appendEventLog(authLogPath, message);
+}
+
+// Connection attempts, failures and disconnects of the TikTok chat, so a stream
+// without comments can be explained afterwards. The API key is never written.
+function recordTikTokEvent(message) {
+  let text = String(message);
+  for (const key of new Set([tiktokApiKey, tiktokApiKey.toLowerCase()])) {
+    if (key) text = text.split(key).join('[Key]');
+  }
+  appendEventLog(tiktokLogPath, text.replace(/(api[-_]?key=)[^&\s"']+/gi, '$1[Key]'), 300);
+}
+
+function tiktokErrorDetail(error, additionalError = null) {
+  return nestedErrorText(error, additionalError).replace(/\s+/g, ' ').trim().slice(0, 400);
+}
+
+function appendEventLog(logPath, message, limit = 100) {
   try {
-    const file = authLogPath();
+    const file = logPath();
     let lines = [];
     try { lines = fs.readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean); } catch {}
     lines.push(`${new Date().toISOString()} v${app.getVersion()} ${message}`);
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, `${lines.slice(-100).join('\n')}\n`, 'utf8');
+    fs.writeFileSync(file, `${lines.slice(-limit).join('\n')}\n`, 'utf8');
   } catch {}
 }
 
@@ -1916,6 +1938,7 @@ async function connectTikTok() {
   connectionDiagnostics.tiktokRetryAt = null;
   emitDiagnostics();
   setStatus('connecting', `TikTok @${username} wird gesucht …`);
+  recordTikTokEvent(`Verbindungsversuch @${username}, Euler-Key ${tiktokApiKey ? 'gespeichert' : 'fehlt'}`);
   let roomLookupError = null;
   try {
     tiktokModulePromise ||= import('tiktok-live-connector');
@@ -1964,7 +1987,16 @@ async function connectTikTok() {
         else if (kind === 'follow' || kind === 'share') dispatchTikTokSocial(normalizeTikTokSocial(raw, kind));
         else if (kind === 'viewer') updateTikTokViewerMetrics(raw);
       }, 500);
-      const forward = (kind, raw) => pendingEvents.push(kind, raw);
+      const counts = { message: 0, gift: 0, other: 0 };
+      let connectedAt = null;
+      const forward = (kind, raw) => {
+        counts[kind in counts ? kind : 'other'] += 1;
+        pendingEvents.push(kind, raw);
+      };
+      const summary = () => {
+        const minutes = connectedAt ? Math.round((Date.now() - connectedAt) / 60000) : 0;
+        return `nach ${minutes} min, ${counts.message} Kommentare, ${counts.gift} Geschenke, ${counts.other} sonstige Ereignisse`;
+      };
 
       connection.on(WebcastEvent.CHAT, data => forward('message', data));
       connection.on(WebcastEvent.GIFT, data => forward('gift', data));
@@ -1977,6 +2009,7 @@ async function connectTikTok() {
         // The connector disconnects itself after a stream end; that DISCONNECTED
         // event must not replace the slower stream-end retry below.
         streamEnded = true;
+        recordTikTokEvent(`Stream-Ende gemeldet ${summary()}`);
         historyStore.tiktok = null;
         saveHistorySoon();
         send('chat:clear', { platform: 'tiktok' });
@@ -1991,6 +2024,7 @@ async function connectTikTok() {
         // connect() rejects with the same error. Let the outer connection flow
         // perform its optional gift-info fallback before exposing a failure.
         if (!ready) return;
+        recordTikTokEvent(`Fehler während der Verbindung: ${tiktokErrorDetail(error)}`);
         const friendly = friendlyTikTokError(error, username, null, { apiKeyConfigured: Boolean(tiktokApiKey) });
         connectionDiagnostics.tiktokState = connectionDiagnostics.tiktok ? 'connected' : 'error';
         connectionDiagnostics.tiktokError = friendly;
@@ -2000,6 +2034,7 @@ async function connectTikTok() {
       });
       connection.on(ControlEvent.DISCONNECTED, () => {
         if (generation !== tiktokGeneration || connection !== tiktokConnection || quitting || streamEnded) return;
+        recordTikTokEvent(`Verbindung getrennt ${summary()}; neuer Versuch in 5 s`);
         updateStreamMetrics({ tiktokLive: false, tiktokViewers: null });
         connectionDiagnostics.tiktokState = 'waiting';
         setConnectionPart('tiktok', false);
@@ -2022,6 +2057,7 @@ async function connectTikTok() {
           connected,
           releasePending() {
             ready = true;
+            connectedAt = Date.now();
             pendingEvents.release();
           }
         };
@@ -2035,6 +2071,7 @@ async function connectTikTok() {
       opened = await openConnection(true);
     } catch (error) {
       if (!shouldRetryWithoutExtendedGiftInfo(error) || generation !== tiktokGeneration) throw error;
+      recordTikTokEvent(`Geschenkdetails nicht abrufbar, zweiter Versuch ohne: ${tiktokErrorDetail(error)}`);
       const previous = tiktokConnection;
       previous?.removeAllListeners();
       Promise.resolve(previous?.disconnect()).catch(() => {});
@@ -2051,6 +2088,7 @@ async function connectTikTok() {
     updateStreamMetrics({ tiktokLive: true, tiktokStartedAt: startedAt });
     setConnectionPart('tiktok', true);
     opened.releasePending();
+    recordTikTokEvent(`Verbunden mit Raum ${connected?.roomId || resolvedRoomId || connection.roomId || 'unbekannt'}`);
     send('chat:system', { text: `TikTok-Chat für @${username} ist aktiv.` });
   } catch (error) {
     if (generation !== tiktokGeneration) return;
@@ -2065,9 +2103,11 @@ async function connectTikTok() {
     connectionDiagnostics.lastError = friendly;
     emitDiagnostics();
     updateOverallStatus();
+    const retryDelay = tikTokRetryDelay(error, reconnectDelay(tiktokRetryAttempt++, 30000, 120000));
+    recordTikTokEvent(`Verbindung fehlgeschlagen: ${tiktokErrorDetail(error, roomLookupError)}; neuer Versuch in ${Math.round(retryDelay / 1000)} s`);
     // Each failed attempt may start a hidden Chromium page, so an offline account
     // is polled with backoff (30 s → 2 min) instead of every 30 seconds.
-    scheduleTikTokReconnect(tikTokRetryDelay(error, reconnectDelay(tiktokRetryAttempt++, 30000, 120000)));
+    scheduleTikTokReconnect(retryDelay);
   }
 }
 
@@ -2231,6 +2271,11 @@ function registerIpc() {
       emitHistory();
     }
     return publicSettings();
+  });
+  registerTrustedHandler('tiktok:open-log', async () => {
+    if (!fs.existsSync(tiktokLogPath())) throw new Error('Es gibt noch kein TikTok-Protokoll. Es entsteht beim ersten Verbindungsversuch.');
+    const failure = await shell.openPath(tiktokLogPath());
+    if (failure) throw new Error(failure);
   });
   registerTrustedHandler('tiktok:set-api-key', (_event, value) => {
     saveTikTokApiKey(value);
