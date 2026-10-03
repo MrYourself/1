@@ -1,6 +1,6 @@
 {
   "name": "twitch-chat-overlay",
-  "version": "0.2.1-beta.5",
+  "version": "0.2.1-beta.6",
   "description": "Transparentes Twitch- und TikTok-Livechat-Overlay für Windows",
   "main": "src/main.js",
   "author": "Jonas",
