@@ -146,6 +146,29 @@ test('start mode leaves a running session alone and never retries a failed versi
   assert.deepEqual(failed.attempts, []);
 });
 
+test('start mode offers the update again when the installer does not start', () => {
+  const { autoUpdater, updater, states } = harness({ installMode: 'start' });
+  updater.start();
+  autoUpdater.emit('update-downloaded', { version: '0.1.16' });
+  assert.equal(states.filter(state => state.status === 'ready').length, 0, 'no "installs on quit" notice before the restart');
+  assert.equal(updater.state.status, 'installing');
+  autoUpdater.emit('error', new Error('No update filepath provided'));
+  assert.equal(updater.state.status, 'ready');
+  assert.match(updater.state.error, /No update filepath/);
+  assert.equal(updater.installNow(), true);
+});
+
+test('start mode does not install when the attempt cannot be recorded', () => {
+  const autoUpdater = new EventEmitter();
+  const updater = createUpdater({
+    autoUpdater, currentVersion: '0.1.15', enabled: true, installMode: 'start',
+    onInstallAtStart: () => false, setTimer: () => {}, setRepeat: () => ({}), clearRepeat: () => {}
+  });
+  updater.start();
+  autoUpdater.emit('update-downloaded', { version: '0.1.16' });
+  assert.equal(updater.state.status, 'ready');
+});
+
 test('manual mode downloads but installs only on request', () => {
   const { autoUpdater, updater } = harness({ installMode: 'manual' });
   assert.equal(autoUpdater.autoDownload, true);

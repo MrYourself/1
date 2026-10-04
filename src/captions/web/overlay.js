@@ -17,3 +17,5 @@ const events = new EventSource('events');
 events.addEventListener('state', event => display.applyState(parse(event)));
 events.addEventListener('interim', event => display.showInterim(parse(event) || {}));
 events.addEventListener('line', event => display.showLine(parse(event)));
+// A half-finished sentence must not stay on stream while the app is gone.
+events.addEventListener('error', () => display.showInterim({}));

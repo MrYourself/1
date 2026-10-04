@@ -81,6 +81,7 @@ const DEFAULT_SETTINGS = Object.freeze({
 });
 const RECENT_MESSAGE_LIMIT = 500;
 const HISTORY_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const HISTORY_SAVE_INTERVAL_MS = 5000;
 const CAPTIONS_DEFAULT_BOUNDS = Object.freeze({ width: 960, height: 170 });
 const CAPTIONS_MIN_WIDTH = 320;
 const CAPTIONS_MIN_HEIGHT = 90;
@@ -122,6 +123,8 @@ let reconnectTimer = null;
 let twitchReconnectTimer = null;
 let ircReconnectTimer = null;
 let tiktokReconnectTimer = null;
+// Pending connect() calls, so an abandoned connection can be closed once it is up.
+const tiktokConnecting = new WeakMap();
 let streamPollTimer = null;
 let tokenValidationTimer = null;
 let badgeMap = {};
@@ -203,10 +206,10 @@ function readJson(file, fallback) {
   }
 }
 
-function writeJson(file, value) {
+function writeJson(file, value, indent = 2) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const temporary = `${file}.tmp`;
-  fs.writeFileSync(temporary, JSON.stringify(value, null, 2), { encoding: 'utf8', mode: 0o600 });
+  fs.writeFileSync(temporary, JSON.stringify(value, null, indent), { encoding: 'utf8', mode: 0o600 });
   fs.renameSync(temporary, file);
 }
 
@@ -234,16 +237,18 @@ function reportStorageError(label, error) {
   emitDiagnostics();
 }
 
+// A busy chat changes the history several times per second. The file is written at
+// most once per interval; flushHistory() covers the rest when the app quits.
 function saveHistorySoon() {
-  clearTimeout(historySaveTimer);
+  if (historySaveTimer) return;
   historySaveTimer = setTimeout(() => {
     historySaveTimer = null;
     try {
-      writeJson(historyPath(), historyStore);
+      writeJson(historyPath(), historyStore, 0);
     } catch (error) {
       reportStorageError('Verlauf konnte nicht gespeichert werden', error);
     }
-  }, 180);
+  }, HISTORY_SAVE_INTERVAL_MS);
 }
 
 function flushHistory() {
@@ -483,6 +488,8 @@ function setCaptionStatus({ state, message }) {
   connectionDiagnostics.captions = state;
   connectionDiagnostics.captionsError = state === 'error' || state === 'reconnecting' ? message : null;
   emitDiagnostics();
+  // A sentence cut off by a lost connection is never finished; take it off the stream.
+  if (state !== 'live') sendCaptions('captions:interim', { sourceId: 'mic', text: '' });
 }
 
 function handleCaptionResult(message) {
@@ -550,6 +557,8 @@ function createCaptionsWindow() {
     callback(permission === 'media' && mediaTypes.length > 0 && mediaTypes.every(type => type === 'audio'));
   });
   captionSession.setPermissionCheckHandler((_webContents, permission) => permission === 'media');
+  // The session outlives the window; a listener per window would pile up.
+  captionSession.removeAllListeners('will-download');
   captionSession.on('will-download', event => event.preventDefault());
   // Unlike the chat overlay, the captions must be visible to stream capture.
   captionWindow.setContentProtection(false);
@@ -689,8 +698,13 @@ function relaunchPortable() {
   const executable = process.env.PORTABLE_EXECUTABLE_FILE;
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('PORTABLE_EXECUTABLE')));
   app.releaseSingleInstanceLock();
-  spawn(executable, [], { detached: true, stdio: 'ignore', cwd: path.dirname(executable), env }).unref();
-  app.quit();
+  const child = spawn(executable, [], { detached: true, stdio: 'ignore', cwd: path.dirname(executable), env });
+  // The file is already swapped; if it cannot be started, the next manual start uses it.
+  child.once('error', error => reportStorageError('Neue Version konnte nicht gestartet werden', error));
+  child.once('spawn', () => {
+    child.unref();
+    app.quit();
+  });
 }
 
 function createAppPortableUpdate(config) {
@@ -725,11 +739,15 @@ function createAppUpdater() {
     installMode: settings.updateInstall,
     portableUpdate: enabled ? createAppPortableUpdate(config) : null,
     mayInstallAtStart: version => readJson(updateAttemptPath(), null)?.version !== version,
+    // Without the note a failing installer would restart the app on every start,
+    // so an attempt that cannot be recorded is not made.
     onInstallAtStart: version => {
       try {
         writeJson(updateAttemptPath(), { version, at: new Date().toISOString() });
+        return true;
       } catch (error) {
         reportStorageError('Update-Versuch konnte nicht vermerkt werden', error);
+        return false;
       }
     },
     onState: handleUpdateState
@@ -1840,16 +1858,24 @@ function scheduleTikTokReconnect(delay = 30000) {
   tiktokReconnectTimer = setTimeout(() => connectTikTok().catch(() => {}), delay);
 }
 
+// The connector ignores disconnect() while it is still connecting and then opens the
+// socket anyway. Such a connection would stay alive unseen and keep an Euler slot
+// busy, so it is closed a second time as soon as its connect() has settled.
+function discardTikTokConnection(connection) {
+  if (!connection) return;
+  connection.removeAllListeners();
+  const disconnect = () => Promise.resolve().then(() => connection.disconnect()).catch(() => {});
+  disconnect();
+  tiktokConnecting.get(connection)?.then(disconnect, () => {});
+}
+
 function closeTikTokConnection(clearHistory = false) {
   ++tiktokGeneration;
   clearTimeout(tiktokReconnectTimer);
   tiktokReconnectTimer = null;
   const connection = tiktokConnection;
   tiktokConnection = null;
-  if (connection) {
-    connection.removeAllListeners();
-    Promise.resolve(connection.disconnect()).catch(() => {});
-  }
+  discardTikTokConnection(connection);
   connectionDiagnostics.tiktok = false;
   connectionDiagnostics.tiktokRetryAt = null;
   updateStreamMetrics({
@@ -2050,8 +2076,13 @@ async function connectTikTok() {
             reject(error);
           }, 25000);
         });
-        const connected = await Promise.race([connection.connect(resolvedRoomId || undefined), timeoutPromise]);
-        if (generation !== tiktokGeneration || connection !== tiktokConnection) return null;
+        const connecting = connection.connect(resolvedRoomId || undefined);
+        tiktokConnecting.set(connection, connecting);
+        const connected = await Promise.race([connecting, timeoutPromise]);
+        if (generation !== tiktokGeneration || connection !== tiktokConnection) {
+          discardTikTokConnection(connection);
+          return null;
+        }
         return {
           connection,
           connected,
@@ -2072,9 +2103,7 @@ async function connectTikTok() {
     } catch (error) {
       if (!shouldRetryWithoutExtendedGiftInfo(error) || generation !== tiktokGeneration) throw error;
       recordTikTokEvent(`Geschenkdetails nicht abrufbar, zweiter Versuch ohne: ${tiktokErrorDetail(error)}`);
-      const previous = tiktokConnection;
-      previous?.removeAllListeners();
-      Promise.resolve(previous?.disconnect()).catch(() => {});
+      discardTikTokConnection(tiktokConnection);
       opened = await openConnection(false);
     }
     if (!opened || generation !== tiktokGeneration || opened.connection !== tiktokConnection) return;
@@ -2092,10 +2121,8 @@ async function connectTikTok() {
     send('chat:system', { text: `TikTok-Chat für @${username} ist aktiv.` });
   } catch (error) {
     if (generation !== tiktokGeneration) return;
-    const connection = tiktokConnection;
-    connection?.removeAllListeners();
-    Promise.resolve(connection?.disconnect()).catch(() => {});
-    if (connection === tiktokConnection) tiktokConnection = null;
+    discardTikTokConnection(tiktokConnection);
+    tiktokConnection = null;
     const friendly = friendlyTikTokError(error, username, roomLookupError, { apiKeyConfigured: Boolean(tiktokApiKey) });
     connectionDiagnostics.tiktok = false;
     connectionDiagnostics.tiktokState = 'error';

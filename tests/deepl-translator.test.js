@@ -111,6 +111,10 @@ test('recognizes stretched chat English locally instead of asking DeepL', async 
   await flush();
   assert.equal(requests.length, 0);
   assert.equal(likelyLanguage('me gusta mucho tu stream'), null, 'Spanish is not mistaken for English');
+  // "se", "al" and "ben" look like a squeezed "see", "all" and "been".
+  for (const foreign of ['se me olvidó al final', 'ik ben er al', 'se vuoi andiamo al mare']) {
+    assert.equal(likelyLanguage(foreign), null, foreign);
+  }
 });
 
 test('drops a translation that only tidies the spelling of the original', async () => {

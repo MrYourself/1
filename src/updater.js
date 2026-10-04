@@ -85,14 +85,26 @@ function createUpdater({
     return true;
   }
 
-  function downloaded(version) {
-    update({ status: 'ready', version, progress: 100, error: null });
-    if (mode !== 'start' || startedAt === null || now() - startedAt > STARTUP_INSTALL_WINDOW_MS) return;
+  function installsAtStart(version) {
+    if (mode !== 'start' || startedAt === null || now() - startedAt > STARTUP_INSTALL_WINDOW_MS) return false;
     // One automatic attempt per version: a failing installer must not restart the app in a loop.
-    if (!mayInstallAtStart(version)) return;
-    onInstallAtStart(version);
-    update({ status: 'installing' });
-    setTimer(() => { install(); }, INSTALL_NOTICE_MS);
+    return mayInstallAtStart(version) && onInstallAtStart(version) !== false;
+  }
+
+  function downloaded(version) {
+    const ready = { version, progress: 100, error: null };
+    if (!installsAtStart(version)) {
+      update({ status: 'ready', ...ready });
+      return;
+    }
+    update({ status: 'installing', ...ready });
+    setTimer(() => {
+      try {
+        install();
+      } catch (error) {
+        update({ status: 'ready', error: errorText(error) });
+      }
+    }, INSTALL_NOTICE_MS);
   }
 
   function downloadPortable(version) {
@@ -137,7 +149,12 @@ function createUpdater({
     autoUpdater.on('update-downloaded', info => downloaded(String(info?.version || state.version || '')));
     autoUpdater.on('error', error => {
       // A failed background check must not hide an update that is already downloaded.
-      if (['ready', 'installing'].includes(state.status)) return;
+      if (state.status === 'ready') return;
+      // The installer did not start: offer the update again instead of waiting forever.
+      if (state.status === 'installing') {
+        update({ status: 'ready', error: errorText(error) });
+        return;
+      }
       update({ status: 'error', error: errorText(error) });
     });
   }
@@ -170,6 +187,9 @@ function createUpdater({
   function setInstallMode(value) {
     mode = normalizeInstallMode(value);
     applyMode();
+    // electron-updater registers its install-on-quit hook when the download ends. An
+    // update that was downloaded in manual mode needs the hook added afterwards.
+    if (enabled && !portable && mode !== 'manual' && state.status === 'ready') autoUpdater.addQuitHandler?.();
   }
 
   function installNow() {

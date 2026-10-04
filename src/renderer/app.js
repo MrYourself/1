@@ -104,6 +104,18 @@ function applyStreamMetrics(next) {
 }
 
 function applySettings(next) {
+  // Settings also arrive from the tray and other windows. Text that is being typed
+  // right now must survive that and is put back after the form was filled.
+  const typing = document.activeElement;
+  const typed = typing?.matches?.('input[type="text"], input:not([type]), textarea') ? typing.value : null;
+  try {
+    fillSettings(next);
+  } finally {
+    if (typed !== null) typing.value = typed;
+  }
+}
+
+function fillSettings(next) {
   const previousFade = Number(state.settings.fadeSeconds || 0);
   state.settings = { ...state.settings, ...next };
   const settings = state.settings;

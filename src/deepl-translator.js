@@ -132,7 +132,10 @@ function likelyLanguage(text) {
   const words = String(text || '').toLowerCase().replace(/[‘’]/g, "'").match(/[\p{L}']+/gu) || [];
   const hits = {};
   for (const [language, stopwords] of Object.entries(STOPWORDS)) {
-    hits[language] = words.filter(word => stopwords.has(word) || SQUEEZED_STOPWORDS[language].has(squeeze(word))).length;
+    // Only stretched words use the squeezed list: "se", "al" or "ben" are words of
+    // other languages and must not count as a squeezed "see", "all" or "been".
+    hits[language] = words.filter(word => stopwords.has(word) ||
+      (squeeze(word) !== word && SQUEEZED_STOPWORDS[language].has(squeeze(word)))).length;
   }
   const [best, second] = Object.entries(hits).sort((left, right) => right[1] - left[1]);
   if (!best || best[1] < 2 || best[1] < (second?.[1] || 0) * 2) return null;

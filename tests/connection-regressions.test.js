@@ -215,6 +215,40 @@ test('TikTok connections do not replay comments from before the connection', () 
   return app.run('connectTikTok()').then(() => assert.equal(options.processInitialData, false));
 });
 
+test('a TikTok connection abandoned while connecting is closed once it is up', async () => {
+  const disconnects = [];
+  let finishConnect;
+  class TikTokConnection extends EventEmitter {
+    constructor() { super(); this.connected = false; }
+    connect() {
+      return new Promise(resolve => {
+        finishConnect = () => { this.connected = true; resolve({ roomId: '123456789' }); };
+      });
+    }
+    // Like the real connector: a disconnect during the connect does not stop it.
+    async disconnect() { disconnects.push(this.connected); }
+  }
+  const app = mainContext({ electron: { net: { fetch: async () => ({ ok: true,
+    text: async () => '<script id="SIGI_STATE">{"LiveRoom":{"liveRoomUserInfo":{"user":{"uniqueId":"streamer","roomId":"123456789"}}}}</script>'
+  }) } } });
+  app.context.connector = {
+    TikTokLiveConnection: TikTokConnection,
+    WebcastEvent: { CHAT: 'chat', GIFT: 'gift', FOLLOW: 'follow', SHARE: 'share', ROOM_USER: 'viewer', STREAM_END: 'end' },
+    ControlEvent: { ERROR: 'error', DISCONNECTED: 'disconnected' }
+  };
+  app.run("settings.tiktokUsername = 'streamer'; tiktokModulePromise = Promise.resolve(connector); send = () => {};");
+  const connecting = app.run('connectTikTok()');
+  while (!finishConnect) await new Promise(resolve => setImmediate(resolve));
+  app.run('closeTikTokConnection()');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(disconnects, [false], 'the first disconnect comes too early to close anything');
+  finishConnect();
+  await connecting;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(disconnects.at(-1), true, 'the established connection is closed afterwards');
+  assert.equal(app.run('tiktokConnection'), null);
+});
+
 test('Twitch clear preserves TikTok history and visible messages; local clear removes both', () => {
   const app = mainContext();
   const renderer = rendererContext();

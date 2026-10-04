@@ -2,6 +2,7 @@
 
 const LEVEL_INTERVAL_MS = 200;
 const SAMPLE_RATE = 16000;
+const RESTART_DELAY_MS = 4000;
 
 const container = document.getElementById('captions');
 const { createSpeechGate, gateThreshold, levelFromRms } = window.captionSpeechGate;
@@ -13,6 +14,7 @@ let activeDeviceId = null;
 let startGeneration = 0;
 let lastLevelAt = 0;
 let peakLevel = 0;
+let restartTimer = null;
 
 const gate = createSpeechGate({
   send: chunk => window.captions.sendAudio(chunk),
@@ -58,6 +60,7 @@ async function reportDevices() {
 
 async function startAudio() {
   const generation = ++startGeneration;
+  clearTimeout(restartTimer);
   const deviceId = state.deviceId || '';
   activeDeviceId = deviceId;
   stopAudio();
@@ -84,7 +87,15 @@ async function startAudio() {
     source.connect(capture);
     capture.connect(mute);
     mute.connect(context.destination);
+    if (context.state !== 'running') await context.resume();
+    if (generation !== startGeneration) throw new Error('superseded');
     audio = { stream, context };
+    // An unplugged or reset microphone ends the track without any error.
+    stream.getAudioTracks()[0]?.addEventListener('ended', () => {
+      if (generation !== startGeneration) return;
+      window.captions.reportAudioError('Das Mikrofon wurde getrennt. Die Aufnahme startet neu, sobald es wieder da ist.');
+      scheduleRestart();
+    });
     window.captions.reportAudioError(null);
     reportDevices();
   } catch (error) {
@@ -92,7 +103,14 @@ async function startAudio() {
     context?.close().catch(() => {});
     if (generation !== startGeneration) return;
     window.captions.reportAudioError(microphoneErrorText(error));
+    scheduleRestart();
   }
+}
+
+// Capture that failed or lost its microphone is tried again until it runs.
+function scheduleRestart() {
+  clearTimeout(restartTimer);
+  restartTimer = setTimeout(startAudio, RESTART_DELAY_MS);
 }
 
 function handleFrame({ pcm, rms }) {
