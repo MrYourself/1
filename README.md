@@ -2,6 +2,10 @@
 
 Ein transparentes Windows-Overlay, das Twitch- und TikTok-LIVE-Chats gemeinsam über einem Spiel anzeigt. Das Fenster bleibt immer im Vordergrund und jederzeit bedienbar.
 
+## Neu in Version 0.2.2
+
+- **Stream-Untertitel nur als Übersetzer:** Neuer Schalter „Nur Übersetzungen anzeigen“, standardmäßig an. Was schon in der Untertitel-Sprache gesprochen wird (z. B. Englisch), erscheint nicht mehr als Untertitel; eingeblendet wird nur, was übersetzt wurde. Schalter aus zeigt wie bisher alles Gesprochene.
+
 ## Neu in Version 0.2.1
 
 - **Twitch-Anmeldung:** Ist die Twitch-Anwendung mit dem Client-Typ „Vertraulich“ (Confidential) angelegt, meldet das Overlay das jetzt sofort bei der Anmeldung. Solche Anwendungen können die Anmeldung nicht ohne Client-Secret erneuern, was bisher nach einigen Stunden zu einer kommentarlosen Abmeldung führte. Benötigt wird der Client-Typ **„Öffentlich“ (Public)**.

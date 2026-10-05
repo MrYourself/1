@@ -68,6 +68,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   captionsEnabled: false,
   captionsTarget: 'EN-US',
   captionsShowOriginal: false,
+  captionsOnlyTranslated: true,
   captionsBackground: 'dark',
   captionsFontSize: 30,
   captionsGate: 40,
@@ -496,8 +497,9 @@ function handleCaptionResult(message) {
   const result = parseDeepgramMessage(message);
   if (!result) return;
   const target = settings.captionsTarget;
+  const onlyTranslated = Boolean(settings.captionsOnlyTranslated);
   if (!result.isFinal) {
-    sendCaptions('captions:interim', { sourceId: 'mic', text: interimText(result.words, target) });
+    sendCaptions('captions:interim', { sourceId: 'mic', text: interimText(result.words, target, { onlyTranslated }) });
     return;
   }
   if (!result.words.length) {
@@ -509,11 +511,16 @@ function handleCaptionResult(message) {
   captionQueue = captionQueue
     .then(() => buildCaption(result.words, {
       target,
+      onlyTranslated,
       // DeepL detects the language itself. The recognizer's tag is wrong too often,
       // and a forced wrong source makes DeepL reword English into other English.
       translate: text => translator ? translator.translateText(text, { target }) : null
     }))
-    .then(caption => sendCaptions('captions:line', { sequence, sourceId: 'mic', ...caption }))
+    .then(caption => {
+      // Nothing left to show (only-translations mode): just take the "…" away.
+      if (caption.text) sendCaptions('captions:line', { sequence, sourceId: 'mic', ...caption });
+      else sendCaptions('captions:interim', { sourceId: 'mic', text: '' });
+    })
     .catch(() => {});
 }
 

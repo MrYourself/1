@@ -76,6 +76,20 @@ test('leaves English alone when the recognizer mislabels it as another language'
   assert.equal(unchanged.translated, false, 'a translation that only tidies the text is dropped');
 });
 
+test('only-translations mode leaves out speech in the caption language', async () => {
+  const english = [{ text: 'Oh', language: 'en' }, { text: 'found', language: 'en' }, { text: 'it.', language: 'en' }];
+  const german = [{ text: 'Wo', language: 'de' }, { text: 'ist', language: 'de' }, { text: 'der', language: 'de' }, { text: 'Shop?', language: 'de' }];
+  const options = { target: 'EN-US', onlyTranslated: true, translate: async () => 'Where is the shop?' };
+  assert.equal((await buildCaption(english, options)).text, '', 'spoken English produces no caption');
+  const mixed = await buildCaption([...german, ...english], options);
+  assert.equal(mixed.text, 'Where is the shop?');
+  assert.equal(mixed.original, 'Wo ist der Shop?');
+  const offline = await buildCaption(german, { ...options, translate: async () => null });
+  assert.equal(offline.text, '', 'untranslated German is not shown to English viewers');
+  assert.equal(interimText(english, 'EN-US', { onlyTranslated: true }), '');
+  assert.equal(interimText(german, 'EN-US', { onlyTranslated: true }), '…');
+});
+
 test('interim captions never show untranslated foreign text', () => {
   assert.equal(interimText([{ text: 'hello', language: 'en' }], 'EN-US'), 'hello');
   assert.equal(interimText([{ text: 'hallo', language: 'de' }], 'EN-US'), '…');

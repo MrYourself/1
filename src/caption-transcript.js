@@ -70,28 +70,31 @@ function needsTranslation(language, target, text = '') {
 
 // Interim results are shown immediately. Text that still needs a translation is
 // replaced by a typing indicator so viewers never read half-recognized German.
-function interimText(words, target) {
+function interimText(words, target, { onlyTranslated = false } = {}) {
   if (!words?.length) return '';
   const text = words.map(word => word.text).join(' ');
   if (words.some(word => needsTranslation(word.language, target, text))) return '…';
-  return text;
+  return onlyTranslated ? '' : text;
 }
 
-async function buildCaption(words, { target, translate }) {
+// With `onlyTranslated` the caption is a pure translator: speech that is already in
+// the target language (and anything that could not be translated) is left out.
+async function buildCaption(words, { target, translate, onlyTranslated = false }) {
   const runs = languageRuns(words);
-  const parts = await Promise.all(runs.map(async run => {
-    if (!needsTranslation(run.language, target, run.text)) return { text: run.text, translated: false };
+  const built = await Promise.all(runs.map(async run => {
+    if (!needsTranslation(run.language, target, run.text)) return { text: run.text, original: run.text, translated: false };
     let translated = null;
     try {
       translated = await translate(run.text, run.language.toUpperCase());
     } catch {}
     // Same words back, only tidied: the run was already in the target language.
     if (translated && comparable(translated) === comparable(run.text)) translated = null;
-    return { text: translated || run.text, translated: Boolean(translated) };
+    return { text: translated || run.text, original: run.text, translated: Boolean(translated) };
   }));
+  const parts = onlyTranslated ? built.filter(part => part.translated) : built;
   return {
     text: parts.map(part => part.text).join(' ').trim(),
-    original: runs.map(run => run.text).join(' ').trim(),
+    original: parts.map(part => part.original).join(' ').trim(),
     translated: parts.some(part => part.translated),
     languages: [...new Set(runs.map(run => run.language).filter(Boolean))]
   };

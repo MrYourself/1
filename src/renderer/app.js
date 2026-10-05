@@ -24,7 +24,7 @@ const dom = Object.fromEntries([
   'captionsInput', 'deepgramApiKeyInput', 'saveDeepgramApiKeyButton', 'clearDeepgramApiKeyButton',
   'deepgramApiKeyStatus', 'deepgramButton', 'captionsDeviceInput', 'captionsGateInput', 'captionsGateOutput',
   'captionsLevelBar', 'captionsGateMark', 'captionsTargetInput', 'captionsBackgroundInput', 'captionsFontSizeInput',
-  'captionsFontSizeOutput', 'captionsOriginalInput', 'captionsErrorText',
+  'captionsFontSizeOutput', 'captionsOriginalInput', 'captionsOnlyTranslatedInput', 'captionsErrorText',
   'captionsUrlInput', 'copyCaptionsUrlButton', 'captionsUrlHelp', 'captionsTextColorInput', 'captionsBoxInput',
   'captionsWindowInput', 'captionsBackgroundField', 'captionsSourceStatus', 'captionsTestButton',
   'updateStatusText', 'checkUpdateButton', 'installUpdateButton', 'downloadUpdateButton', 'updateBetaInput', 'updateInstallInput',
@@ -166,6 +166,7 @@ function fillSettings(next) {
   dom.captionsBackgroundInput.value = settings.captionsBackground || 'dark';
   dom.captionsFontSizeInput.value = settings.captionsFontSize ?? 30;
   dom.captionsOriginalInput.checked = Boolean(settings.captionsShowOriginal);
+  dom.captionsOnlyTranslatedInput.checked = settings.captionsOnlyTranslated !== false;
   dom.updateBetaInput.checked = Boolean(settings.updateBeta);
   dom.updateInstallInput.value = settings.updateInstall || 'start';
   renderUpdateState(lastUpdateState);
@@ -732,6 +733,7 @@ function settingsFromForm() {
     captionsBackground: dom.captionsBackgroundInput.value,
     captionsFontSize: Number(dom.captionsFontSizeInput.value),
     captionsShowOriginal: dom.captionsOriginalInput.checked,
+    captionsOnlyTranslated: dom.captionsOnlyTranslatedInput.checked,
     captionsTextColor: dom.captionsTextColorInput.value,
     captionsBox: dom.captionsBoxInput.checked,
     captionsWindowVisible: dom.captionsWindowInput.checked,
@@ -831,7 +833,7 @@ for (const input of [dom.timestampsInput, dom.compactInput, dom.botsInput, dom.c
 }
 for (const input of [dom.channelInput, dom.tiktokUsernameInput, dom.hiddenUsersInput, dom.blockedTermsInput,
   dom.translationInput, dom.translationTargetInput, dom.translationSkipInput,
-  dom.captionsInput, dom.captionsDeviceInput, dom.captionsTargetInput, dom.captionsBackgroundInput, dom.captionsOriginalInput,
+  dom.captionsInput, dom.captionsDeviceInput, dom.captionsTargetInput, dom.captionsBackgroundInput, dom.captionsOriginalInput, dom.captionsOnlyTranslatedInput,
   dom.captionsBoxInput, dom.captionsWindowInput, dom.updateBetaInput, dom.updateInstallInput]) {
   input.addEventListener('change', () => queueSettingsSave(true));
 }
