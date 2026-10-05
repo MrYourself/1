@@ -1,225 +1,72 @@
-# Stream Chat Overlay
+# Twitch Chat Overlay
 
-Ein transparentes Windows-Overlay, das Twitch- und TikTok-LIVE-Chats gemeinsam über einem Spiel anzeigt. Das Fenster bleibt immer im Vordergrund und jederzeit bedienbar.
+Ein transparentes Windows-Overlay, das den Twitch- und den TikTok-LIVE-Chat gemeinsam über dem Spiel anzeigt. Es übersetzt auf Wunsch fremdsprachige Chatnachrichten und blendet Gesprochenes als übersetzte Untertitel in den Stream ein.
 
-## Neu in Version 0.2.2
+**[Aktuelle Version herunterladen](https://github.com/MrYourself/1/releases/latest)** · [Änderungen je Version](CHANGELOG.md)
 
-- **Stream-Untertitel nur als Übersetzer:** Neuer Schalter „Nur Übersetzungen anzeigen“, standardmäßig an. Was schon in der Untertitel-Sprache gesprochen wird (z. B. Englisch), erscheint nicht mehr als Untertitel; eingeblendet wird nur, was vollständig übersetzt wurde. Sätze, in denen beide Sprachen gemischt sind, erzeugen keinen Untertitel. Schalter aus zeigt wie bisher alles Gesprochene.
+## Was es kann
 
-## Neu in Version 0.2.1
+- **Beide Chats in einem Fenster:** Twitch und TikTok LIVE, chronologisch gemischt, mit Emotes, Badges, Profilbildern, Bits, Abos, Follows und TikTok-Geschenken.
+- **Immer im Vordergrund:** rahmenlos und transparent über dem Spiel; Schriftgröße, Deckkraft, Nachrichtenanzahl und Ausblendzeit sind einstellbar.
+- **Stream-Safe:** Das Overlay ist nur auf dem eigenen Bildschirm sichtbar und wird vor Bildschirmaufnahmen verborgen.
+- **Chat-Übersetzung:** Fremdsprachige Nachrichten werden mit DeepL übersetzt und klein unter dem Original angezeigt.
+- **Stream-Untertitel:** Gesprochenes Deutsch erscheint als englischer Untertitel im Stream (oder in einer anderen Zielsprache), eingebunden als Browserquelle in OBS oder TikTok LIVE Studio.
+- **Live-Statistiken:** Zuschauerzahlen beider Plattformen, Streamdauer und Uhrzeit.
+- **Filter:** bekannte Bots, Chatbefehle, einzelne Nutzer, blockierte Begriffe und Spam.
+- **Automatische Updates** über GitHub Releases.
 
-- **Twitch-Anmeldung:** Ist die Twitch-Anwendung mit dem Client-Typ „Vertraulich“ (Confidential) angelegt, meldet das Overlay das jetzt sofort bei der Anmeldung. Solche Anwendungen können die Anmeldung nicht ohne Client-Secret erneuern, was bisher nach einigen Stunden zu einer kommentarlosen Abmeldung führte. Benötigt wird der Client-Typ **„Öffentlich“ (Public)**.
-- Untertitel als **Browserquelle** für OBS („Browser“) und TikTok LIVE Studio („Link“): transparenter Hintergrund, kein Mauszeiger, frei wählbare Größe.
-- Einstellbare **Textfarbe** der Untertitel, dunkler Kasten hinter dem Text ein- und ausschaltbar.
-- Das Aufnahmefenster ist optional und standardmäßig aus. Es erscheint nur, wenn „Zusätzliches Aufnahmefenster“ eingeschaltet wird.
-- **Updates:** Auswahl, wann Updates installiert werden (sofort beim Start, beim Beenden, nur auf Knopfdruck). Die portable Version aktualisiert sich jetzt selbst.
-- **Chat-Übersetzung:** Nachrichten, die schon in der Zielsprache geschrieben sind, werden auch mit langgezogenen Wörtern erkannt („hellooo I'm backkkkk“) und nicht mehr an DeepL geschickt. Liefert DeepL nur dieselbe Nachricht in sauberer Schreibweise zurück („Grr flames“ → „Grr, flames“), wird sie nicht angezeigt. TikTok-Emotes wie `[wow]` bleiben unübersetzt.
-- **Stream-Untertitel:** Englisch wird nicht mehr „ins Englische übersetzt“. Ordnet die Spracherkennung gesprochenes Englisch fälschlich einer anderen Sprache zu, bleibt der Text so stehen, wie er gesprochen wurde.
-- **TikTok:** Ein Verbindungsversuch, der abgebrochen oder überholt wurde, bleibt nicht mehr unbemerkt im Hintergrund offen und belegt keinen Euler-Platz mehr. Verbindungsversuche, Fehler und Trennungen stehen in `tiktok-events.log` (Knopf „TikTok-Protokoll öffnen“).
-- **Stream-Untertitel:** Wird das Mikrofon getrennt oder ist es beim Start noch nicht bereit, startet die Aufnahme von selbst neu. Ein angefangener Satz bleibt nach einem Verbindungsabbruch nicht mehr im Bild stehen.
-- Der Chat-Verlauf wird höchstens alle fünf Sekunden auf die Festplatte geschrieben statt nach fast jeder Nachricht.
-- Einstellungen, die vom Tray-Menü kommen, überschreiben keinen Text mehr, der gerade eingetippt wird.
-- **Vorabversionen:** Unter **Einstellungen → Updates** lässt sich „Vorabversionen (Beta) erhalten“ einschalten. Ohne diesen Schalter bekommen Installationen nur stabile Versionen.
+## Installation
 
-## Korrekturen in Version 0.1.17 und 0.2.0
+1. Auf der [Download-Seite](https://github.com/MrYourself/1/releases/latest) die Datei `Twitch-Chat-Overlay-Setup-x.y.z.exe` herunterladen und ausführen.
+2. Windows zeigt beim ersten Mal „Unbekannter Herausgeber“, weil die App nicht signiert ist. Über **Weitere Informationen → Trotzdem ausführen** geht es weiter.
 
-- Version 0.2.0 liegt bewusst über den älteren Versionen 0.1.18 bis 0.1.20 mit dem früheren eigenen Update-Server. Updates laufen nur noch über GitHub Releases.
-- Lehnt Twitch das Erneuern der Anmeldung ab, übernimmt die App zuerst eine neuere gespeicherte Anmeldung, statt abzumelden. Gründe für verlorene Anmeldungen werden ohne Tokens in `auth-events.log` festgehalten.
-- Die Entwicklerversion (`npm start`) nutzt einen eigenen Datenordner und kommt der installierten App nicht mehr in die Quere.
-- Einzelne Wörter (Namen, Emote-Wörter, Ausrufe wie „aniimooooo“) werden nicht mehr übersetzt. DeepL hat bei ihnen Sprache und Bedeutung geraten.
-- Langgezogene Buchstaben („sooooo“) werden vor der Übersetzung gekürzt.
-- Erkennt DeepL bei kurzen Nachrichten eine unwahrscheinliche Sprache („ti amo“ als Guaraní), bleibt die Übersetzung erhalten, aber statt eines falschen Sprachkürzels wird nur die Zielsprache angezeigt.
+Die Datei ohne „Setup“ im Namen ist die portable Version: Sie läuft ohne Installation aus jedem Ordner.
 
-## Neu in Version 0.1.15: Chat-Übersetzung mit DeepL
+## Einrichtung
 
-Fremdsprachige Twitch- und TikTok-Nachrichten lassen sich automatisch übersetzen. Die Übersetzung erscheint klein unter der Originalnachricht.
+### Twitch
+
+1. Im Overlay die Twitch Developer Console öffnen und dort eine neue Anwendung registrieren.
+2. Name frei wählen, als OAuth-Redirect-URL `http://localhost` eintragen und als Client-Typ **Öffentlich (Public)** wählen. Mit „Vertraulich“ läuft die Anmeldung nach wenigen Stunden ab.
+3. Die **Client-ID** ins Overlay kopieren und auf **Mit Twitch anmelden** klicken.
+4. Im Browser den angezeigten Gerätecode bestätigen.
+
+Ein Client-Secret wird nicht benötigt, und das Twitch-Passwort erreicht die App nie. Jede Person braucht ihre eigene Twitch-Anwendung. Für die Anzeige neuer Follows muss das angemeldete Konto der Kanal selbst oder dort Moderator sein.
+
+### TikTok
+
+1. Über das Zahnrad die Einstellungen öffnen.
+2. Unter **TikTok-LIVE-Name** den öffentlichen Benutzernamen ohne `@` eintragen.
+3. Sobald der Account live ist, verbindet sich das Overlay von selbst.
+
+TikTok bietet keine offizielle Chat-Schnittstelle. Das Overlay nutzt den inoffiziellen `tiktok-live-connector`; Änderungen bei TikTok können die Verbindung deshalb vorübergehend stören. Für eine zuverlässigere Verbindung lässt sich ein API-Key von [Euler Stream](https://www.eulerstream.com/) hinterlegen. Kommen keine Kommentare an, zeigt **TikTok-Protokoll öffnen** die Verbindungsversuche und Fehler.
+
+### Chat-Übersetzung
 
 1. Unter [deepl.com/pro-api](https://www.deepl.com/pro-api) ein kostenloses **DeepL API Free**-Konto anlegen (500.000 Zeichen pro Monat) und den API-Key kopieren.
-2. Im Overlay unter **Einstellungen → Chat-Übersetzung** den Key speichern. Er wird wie die anderen Zugangsdaten mit der Windows-Anmeldeinformationsspeicherung verschlüsselt.
-3. **Fremdsprachige Nachrichten mit DeepL übersetzen** aktivieren und die Zielsprache wählen.
+2. Im Overlay unter **Einstellungen → Chat-Übersetzung** den Key speichern, die Übersetzung einschalten und die Zielsprache wählen.
 
-So wird das Kontingent geschont:
+Übersetzt wird nur, was nötig ist: Nachrichten in der Zielsprache, in den Sprachen unter **Nicht übersetzen aus**, einzelne Wörter, reine Emote-Nachrichten, ausgeblendete Bots und Spam gehen nicht an DeepL. **Kontingent prüfen** zeigt den Verbrauch des laufenden Monats.
 
-- Übersetzt werden nur Nachrichten, die tatsächlich angezeigt werden. Ausgeblendete Bots, Spam und Chatbefehle kosten keine Zeichen.
-- Sprachen unter **Nicht übersetzen aus** (Standard: `EN`) und die Zielsprache selbst werden nicht übersetzt. Eindeutig englische oder deutsche Nachrichten erkennt das Overlay schon lokal und schickt sie gar nicht erst an DeepL.
-- Sehr kurze Nachrichten (unter 4 Buchstaben), reine Emote-Nachrichten und wiederholte Texte werden nicht erneut übersetzt.
-- Emotes, Erwähnungen und Links bleiben unverändert.
-- **Kontingent prüfen** zeigt den Verbrauch des laufenden Monats. Ist das Kontingent aufgebraucht, pausiert die Übersetzung und der Chat läuft normal weiter.
+### Stream-Untertitel
 
-## Neu in Version 0.1.15: Stream-Untertitel (Beta)
-
-Das Overlay kann Gesprochenes als Untertitel für die Zuschauer anzeigen. Englisch erscheint direkt, Deutsch wird ins Englische übersetzt. Das funktioniert auch, wenn beide Sprachen im selben Satz gemischt werden. Die Untertitel stehen in einem eigenen Fenster „Stream-Untertitel“, das anders als das Chat-Overlay für Aufnahmen sichtbar ist. So lässt es sich in **OBS und TikTok LIVE Studio** gleichermaßen einbinden.
-
-Diese Beta-Version erfasst das **Mikrofon**. Der Ton des Spiels (Voice-Chat) folgt in einer späteren Version.
-
-### Einrichtung
+Die Untertitel sind ein Übersetzer für die Zuschauer: Wird Deutsch gesprochen, erscheint die englische Übersetzung im Stream. Was ohnehin in der Untertitel-Sprache gesprochen wird, erzeugt keinen Untertitel. Erfasst wird das Mikrofon.
 
 1. Unter [console.deepgram.com](https://console.deepgram.com/) ein Konto anlegen und einen API-Key erstellen. Neue Konten erhalten ein Startguthaben.
-2. Im Overlay unter **Einstellungen → Stream-Untertitel** den Deepgram-Key speichern und **Untertitel-Fenster für den Stream** einschalten. Für die Übersetzung wird zusätzlich der DeepL-Key aus der Chat-Übersetzung verwendet; ohne ihn erscheint Deutsch unübersetzt.
-3. Mikrofon auswählen und die **Sprach-Schwelle** einstellen: Beim Sprechen muss der Pegelbalken über die weiße Markierung gehen, in Ruhe darunter bleiben.
-4. Das Fenster an eine passende Stelle ziehen und in der Größe anpassen. Es hat bewusst keine Titelleiste, damit im Stream nichts davon zu sehen ist. Schließen lässt es sich über den Schalter in den Einstellungen oder im Tray-Menü.
+2. Im Overlay unter **Einstellungen → Stream-Untertitel** den Deepgram-Key speichern und die Untertitel einschalten. Für die Übersetzung wird der DeepL-Key aus der Chat-Übersetzung verwendet.
+3. Mikrofon wählen und die **Sprach-Schwelle** einstellen: Beim Sprechen geht der Pegelbalken über die weiße Markierung, in Ruhe bleibt er darunter.
+4. Die Adresse unter **Browserquelle** kopieren (z. B. `http://127.0.0.1:17873/captions`) und einbinden:
+   - **OBS:** Quelle **Browser** hinzufügen, Adresse einfügen, Größe frei wählen (z. B. 1600 × 220).
+   - **TikTok LIVE Studio:** Quelle **Link** hinzufügen und die Adresse einfügen.
+5. Mit **Testzeile senden** prüfen, ob der Untertitel im Stream ankommt.
 
-### In OBS und TikTok LIVE Studio einbinden
+Weitere Optionen:
 
-**Empfohlen: Browserquelle.** Sobald die Untertitel eingeschaltet sind, zeigt **Einstellungen → Stream-Untertitel → Browserquelle** eine Adresse wie `http://127.0.0.1:17873/captions`. Mit **Kopieren** landet sie in der Zwischenablage.
+- **Nur Übersetzungen anzeigen** (Standard: an). Ausgeschaltet wird alles Gesprochene eingeblendet, auch in der Untertitel-Sprache.
+- **Textfarbe**, **Schriftgröße** und **Dunkler Kasten hinter dem Text**.
+- **Zusätzliches Aufnahmefenster** für Programme ohne Browserquelle; dort in der Quelle „Mauszeiger aufnehmen“ ausschalten.
 
-- **OBS:** Quelle **Browser** hinzufügen, Adresse einfügen, Breite und Höhe frei wählen (z. B. 1600 × 220).
-- **TikTok LIVE Studio:** Quelle **Link** hinzufügen und die Adresse einfügen.
-
-Die Browserquelle hat einen echten transparenten Hintergrund, zeigt keinen Mauszeiger, und der Text bricht passend zur gewählten Breite um. Die Adresse ist nur auf dem eigenen Rechner erreichbar.
-
-**Alternative: Fensteraufnahme.** Erst mit dem Schalter **Zusätzliches Aufnahmefenster** erscheint das Fenster „Stream-Untertitel“; ohne ihn bleibt es unsichtbar. Es wird als Fensteraufnahme eingebunden, dort **Mauszeiger aufnehmen** ausschalten. Das Fenster hat einen deckenden Hintergrund (dunkel oder Grün für einen Chroma-Key) und darf verdeckt, aber nicht minimiert sein. Wer nur die Browserquelle nutzt, kann das Fenster ausschalten; das Mikrofon läuft im Hintergrund weiter.
-
-### Aussehen
-
-**Textfarbe**, **Schriftgröße** und **Dunkler Kasten hinter dem Text** gelten für Browserquelle und Fenster gleichermaßen und ändern sich sofort. Ohne Kasten bekommt der Text eine dunkle Kontur, damit er auf jedem Spielbild lesbar bleibt.
-
-### Kosten und Datenschutz
-
-- Übertragen wird nur Audio, während gesprochen wird. Stille kostet nichts. Rechne grob mit 0,50 € pro Stunde reiner Sprechzeit (Deepgram Nova-3, mehrsprachig).
-- Nur deutsche Passagen gehen an DeepL; englische Sätze verbrauchen kein DeepL-Kontingent.
-- Der Mikrofonzugriff ist auf das Untertitel-Fenster beschränkt. Das Chat-Overlay selbst hat weiterhin keinen Zugriff.
-
-## Neu in Version 0.1.15: Automatische Updates
-
-Die App sucht beim Start und danach alle vier Stunden auf GitHub Releases nach einer neuen Version, lädt sie im Hintergrund und kontrolliert ihre Prüfsumme. Wann sie installiert wird, legt **Einstellungen → Updates → „Updates installieren“** fest (ab 0.2.1):
-
-- **Sofort beim Start** (Standard): Ist das Update in den ersten drei Minuten nach dem Start fertig geladen, installiert die App es und startet einmal neu. Später gefundene Updates warten bis zum Beenden, ein laufender Stream wird also nicht unterbrochen. Schlägt die Installation fehl, versucht die App dieselbe Version nicht noch einmal von selbst.
-- **Beim Beenden:** Die App startet nie von selbst neu.
-- **Nur auf Knopfdruck:** Das Update liegt bereit, bis es unter **Einstellungen → Updates** oder im Tray-Menü installiert wird.
-
-Die **portable EXE** lädt die neue Datei ab 0.2.1 selbst herunter und ersetzt sich. Der Dateiname bleibt dabei gleich, Verknüpfungen funktionieren weiter. Die vorherige Version liegt bis zum nächsten Start als `.old` daneben. Ist der Ordner schreibgeschützt, bleibt es beim Hinweis mit Link zur Download-Seite.
-
-In der Entwicklerversion (`npm start`) und in Builds ohne GitHub-Ziel sind Updates abgeschaltet.
-
-### Neue Version veröffentlichen
-
-Releases laufen automatisch über GitHub Actions (`.github/workflows/release.yml`):
-
-1. `RELEASE-GITHUB.bat` starten. Es prüft den Code, sichert offene Änderungen, erhöht die Versionsnummer (z. B. 0.1.16 → 0.1.17) und lädt Code und Versions-Tag zu GitHub hoch.
-2. GitHub testet, baut Setup und portable EXE und veröffentlicht das Release selbstständig. Den Fortschritt zeigt [github.com/MrYourself/1/actions](https://github.com/MrYourself/1/actions).
-3. Installierte Apps finden das Update innerhalb von vier Stunden, laden es im Hintergrund und installieren es beim Beenden.
-
-**Vorabversion:** Ein Tag mit Zusatz, z. B. `v0.2.1-beta.1`, wird auf GitHub als *Pre-release* veröffentlicht. Stabile Installationen ignorieren es; nur wer „Vorabversionen (Beta) erhalten“ eingeschaltet oder bereits eine Beta installiert hat, bekommt es automatisch.
-
-Ein persönlicher GitHub-Token ist dafür nicht mehr nötig. GitHub verwendet für den Build seinen eigenen, auf dieses Repository beschränkten Token.
-
-Ohne Code-Signatur zeigt Windows SmartScreen bei der ersten Installation „Unbekannter Herausgeber“. Die Updates selbst funktionieren trotzdem.
-
-## Korrekturen in Version 0.1.15
-
-- Neuer Knopf **✕** in der Kopfzeile beendet das Overlay. **—** blendet es weiterhin nur aus.
-- Alte TikTok-Nachrichten erscheinen nicht mehr: TikTok liefert beim Verbinden keine Kommentare von vorher mehr nach, und gespeicherter Verlauf wird erst angezeigt, wenn der zugehörige Stream nachweislich noch läuft. Verlauf eines Streams, dessen Ende die App nicht mitbekommen hat, verfällt nach 12 Stunden.
-- Der Sperrmodus wurde entfernt: Das Overlay ist nicht mehr klickdurchlässig; der Knopf **Fertig**, der Sperr-Hinweis, der Tray-Eintrag und das Tastenkürzel `Strg` + `Umschalt` + `O` entfallen. Einstellungen und Bedienknöpfe sind immer erreichbar.
-- Bereits ausgeblendete Nachrichten erscheinen bei Reconnects nicht mehr erneut. Wiederhergestellter Verlauf blendet sich relativ zum ursprünglichen Zeitpunkt aus, und Reconnects bauen den sichtbaren Chat nicht mehr komplett neu auf.
-- Scheitert nach erfolgreicher Twitch-Anmeldung der Verbindungsaufbau, erscheint das nicht mehr als Anmeldefehler.
-- Nach einem TikTok-Stream-Ende wird nicht mehr nach 5 Sekunden neu verbunden und kein Fehlerstatus angezeigt.
-- Ist der TikTok-Account offline, steigen die Verbindungsversuche von 30 Sekunden auf maximal 2 Minuten an. Manuelles Neuverbinden oder ein geänderter Name bzw. API-Key startet sofort.
-- Eine zweite gestartete Instanz initialisiert nichts mehr und kann weder den Twitch-Refresh-Token verbrauchen noch den Verlauf überschreiben.
-- Die App lässt sich auch über Windows-Herunterfahren oder `app.quit()` sauber beenden.
-- Kleinere Korrekturen: fehlende Token-Laufzeit, 429-Erkennung, Spamfilter getrennt nach Plattform, schnellere Duplikat-Bereinigung.
-
-## Korrekturen in Version 0.1.14
-
-- TikTok-Anfangsnachrichten verwenden beim Freigeben des Verbindungspuffers ihre ursprünglichen Zeitstempel für den Spamfilter.
-- Twitch-Moderationsereignisse löschen ausschließlich Twitch-Nachrichten; der lokale Knopf **Chat leeren** leert weiterhin beide Plattformen.
-- Vorübergehende Fehler bei Token-Erneuerung und Kanalauflösung lösen weitere Twitch-Verbindungsversuche mit begrenztem Backoff aus. Abmeldung und veraltete Versuche stoppen diese Wiederholungen.
-- Beim EventSub-Verbindungswechsel werden Ereignisse der alten Verbindung bis zur Begrüßung der neuen Verbindung weiter verarbeitet; doppelte Zustellungen werden erkannt.
-- Das Twitch-Zeitlimit umfasst jetzt auch das vollständige Einlesen der HTTP-Antwort.
-- 14 zusätzliche Ablauf-Tests sichern die korrigierten Fälle ab. Mit `npm run check` werden insgesamt 56 Tests ausgeführt.
-
-Der Quellcode wurde mit simulierten Verbindungen geprüft. Ein Windows-Build und der Betrieb mit echten Twitch-/TikTok-Kanälen wurden für diese Korrekturfassung nicht getestet.
-
-## Funktionen aus Version 0.1.13 (Live-Statistiken und vollständiger Chat)
-
-- getrennte Zuschaueranzeigen für Twitch und TikTok direkt im Overlay
-- laufende Streamdauer: bei Twitch ab dem echten Streamstart, bei TikTok mit Verbindungszeit als zuverlässigem Rückfallwert
-- lokale Uhrzeit und sekundengenaue Dauer in einer kompakten, dauerhaft sichtbaren Statistikleiste
-- Statistikleiste in den Einstellungen ein- und ausblendbar
-- beim TikTok-Verbindungsstart eintreffende Nachrichten werden erst nach der Verlaufsauswahl freigegeben und nicht mehr überschrieben
-- wiederhergestellte Nachrichten verwenden ihre echten Zeitstempel für den Spamfilter; aktive Vielschreiber verlieren dadurch keine Nachrichten mehr
-
-## Weitere Funktionen
-
-- der optionale Abruf erweiterter Geschenkdetails kann den TikTok-Chat nicht mehr blockieren
-- erkennt auch den vom Connector gelieferten `SignatureMissingTokensError` als Geschenklisten-Fehler
-- blendet einen Fehler des ersten, optionalen Versuchs nicht mehr kurzzeitig als endgültigen Verbindungsfehler ein
-- TikTok-Geschenke behalten Name, Bild, Serienstatus und Diamantwert aus dem eigentlichen Live-Ereignis
-
-- lädt einen neu gespeicherten oder ersetzten Euler-Key garantiert in den Signatur-Client
-- erkennt und repariert eine gecachte keylose Signaturinstanz
-- unterscheidet Euler-Limit, abgelehnten Key, fehlende Tarifberechtigung und Dienstausfall
-- längere, angepasste Neuverbindungsintervalle bei Limit- und Berechtigungsfehlern
-
-- Netzwerk-Timeouts für alle Twitch-API- und Anmeldeanfragen
-- kollisionsfreie Twitch-Neuverbindungen: veraltete Kanal- und Socket-Versuche werden verworfen
-- begrenzter exponentieller Backoff für IRC und EventSub
-- gespeicherte Twitch-Anmeldung bleibt bei kurzen Twitch-/Netzwerkausfällen erhalten
-- Chat startet auch dann weiter, wenn einzelne Badge-Bilder nicht geladen werden können
-- gehärtete IPC-Aufrufe, freigegebene externe Ziele und validierte gespeicherte Einstellungen
-- begrenzter TikTok-Ereignispuffer und stärker isolierter versteckter Room-ID-Browser
-- korrekte Twitch-Emote-Positionen bei vorangestellten Emojis
-- reparierte Moderations-, Ausblend- und Fehlerzustände im Overlay
-
-- Twitch-Anmeldung im Browser per offiziellem Device-Code-Flow
-- EventSub-WebSocket plus Twitch-IRC-Rückfallebene für zuverlässigen Chat-Empfang
-- Deduplizierung, falls dieselbe Nachricht über beide Twitch-Verbindungen eintrifft
-- lokaler Twitch-Verlauf, automatisch an die aktuelle Stream-ID gebunden
-- TikTok-LIVE-Chat anhand des öffentlichen TikTok-Benutzernamens
-- eigener Room-ID-Fallback für die aktuelle TikTok-`SIGI_STATE`-Struktur
-- zusätzlicher unsichtbarer, stummgeschalteter Chromium-Fallback für von TikTok blockierte Hintergrundabrufe
-- tolerante Room-ID-Erkennung aus Roh-HTML, escaped Streamdaten und geladenen Ressourcen-URLs
-- TikTok-Profilbilder, Emotes, Geschenke, Geschenkserien und Diamantwerte
-- optional einblendbare TikTok-Follows und Shares
-- gemeinsame, chronologisch sortierte Darstellung beider Plattformen
-- sichtbare Diagnose für EventSub, IRC, TikTok und empfangene Ereignisse
-- verständliche TikTok-Fehleranzeige, 25-Sekunden-Timeout und automatische Neuverbindung
-- optionaler, verschlüsselt gespeicherter Euler-Stream-API-Key für eine zuverlässigere TikTok-Verbindung
-- automatischer Chat-Fallback, falls TikTok nur den Abruf erweiterter Geschenkdetails blockiert
-- fest eingebettetes Windows-Icon für Tray und App-Fenster
-- Twitch-Emotes, animierte Emotes, GIF-Fragmente und Kanal-/Global-Badges
-- eigene Hervorhebungen für Mentions, Bits und Abos
-- grüne Echtzeit-Highlights für neue Twitch-Follows
-- konfigurierbare Bot-, Nutzer-, Wort- und Spamfilter
-- transparentes, rahmenloses Always-on-top-Fenster
-- standardmäßig aktiver Stream-Safe-Modus, der das Overlay vor unterstützten Bildschirmaufnahmen verbirgt
-- frei anpassbare Schriftgröße, Deckkraft, Nachrichtenanzahl und Ausblendzeit
-- Tray-Menü, automatische Wiederverbindung und verschlüsselte Token-Speicherung über Windows
-- Schutz vor mehreren gleichzeitig laufenden App-Instanzen
-
-## Erster Start
-
-1. Installiere [Node.js LTS](https://nodejs.org/), falls es noch nicht vorhanden ist.
-2. Starte `STARTEN.bat`. Beim ersten Mal werden die benötigten Pakete installiert.
-3. Öffne in der App die Twitch Developer Console und registriere eine neue Anwendung.
-4. Verwende beispielsweise `Twitch Chat Overlay Jonas` als eindeutigen Namen. Als OAuth-Redirect-URL kann `http://localhost` eingetragen werden. Wähle, sofern angezeigt, den Client-Typ **Public**. Ein Client-Secret wird nicht benötigt.
-5. Kopiere ausschließlich die öffentliche **Client-ID** in das Overlay und klicke auf **Mit Twitch anmelden**.
-6. Twitch öffnet sich im Browser. Bestätige dort den angezeigten Gerätecode.
-
-Die App fragt `user:read:chat` für EventSub, `chat:read` für die IRC-Rückfallebene und `moderator:read:followers` für neue Follows an. Für Follow-Ereignisse muss das angemeldete Twitch-Konto der Zielkanal selbst oder dort Moderator sein. Das Twitch-Passwort wird niemals an die App übergeben. Access- und Refresh-Token werden auf Windows mit der systemeigenen sicheren Speicherung verschlüsselt.
-
-Enthält eine ältere Anmeldung noch nicht die zusätzliche Follow-Berechtigung, ist einmalig eine erneute Twitch-Anmeldung erforderlich. Neue Follows werden ab dem erfolgreichen Verbindungsaufbau angezeigt; Twitch stellt über EventSub keine rückwirkenden Follow-Ereignisse bereit. Falls nur die Follow-Berechtigung fehlt, läuft der normale Twitch-Chat weiter und die Diagnose zeigt den Grund separat an.
-
-## TikTok einrichten
-
-1. Öffne über das Zahnrad die Einstellungen.
-2. Trage unter **TikTok-LIVE-Name** den öffentlichen Benutzernamen ohne `@` ein.
-3. Sobald der Account live ist, verbindet sich das Overlay automatisch. Ist er offline, versucht die App es regelmäßig erneut.
-4. Über die beiden Schalter lassen sich Geschenke sowie Follows und Shares getrennt aktivieren.
-
-Bleibt die kostenlose Verbindung begrenzt oder meldet einen Signaturfehler, kann optional ein Euler-Stream-API-Key hinterlegt werden. Der Key wird wie die Twitch-Tokens mit der sicheren Windows-Speicherung verschlüsselt und nicht im Klartext in den Einstellungen abgelegt.
-
-Für das reine Lesen ist kein TikTok-Login nötig. Der Zugriff verwendet den inoffiziellen `tiktok-live-connector`, weil TikTok keine öffentliche LIVE-Chat-API anbietet. Änderungen bei TikTok können diese Verbindung vorübergehend beeinträchtigen.
-
-## Verlauf des aktuellen Streams
-
-Twitch-Nachrichten, die das Overlay während eines laufenden Streams empfängt, werden lokal gespeichert. Beim Neustart erkennt die App über Twitchs Stream-ID, ob derselbe Stream noch läuft, und stellt nur dessen Verlauf wieder her. Beginnt ein neuer Stream oder endet der aktuelle, wird der alte Twitch-Verlauf verworfen.
-
-Twitch stellt keinen offiziellen Endpunkt bereit, mit dem Nachrichten aus der Zeit vor dem ersten Verbindungsaufbau nachgeladen werden können. TikTok kann beim Verbinden einen kleinen aktuellen Nachrichtenpuffer liefern; dessen Umfang wird von TikTok bestimmt.
-
-## Live-Statistiken
-
-Die kompakte Leiste zeigt Twitch-Zuschauer, TikTok-Zuschauer, Streamdauer und die lokale Uhrzeit. Die Twitch-Zahl und der echte Twitch-Startzeitpunkt werden mit der bereits vorhandenen Streamstatus-Abfrage aktualisiert. TikTok aktualisiert seine Zuschauerzahl über die Live-Ereignisse des Chats; bis TikTok einen Wert sendet, erscheint ein Gedankenstrich. Liefert TikTok einen gültigen Startzeitpunkt, wird er verwendet; andernfalls zählt die TikTok-Dauer ab dem erfolgreichen Verbindungsaufbau. Ist Twitch live, hat dessen echte Streamdauer Vorrang.
+Kosten: Übertragen wird nur, während gesprochen wird. Grob 0,50 € pro Stunde reiner Sprechzeit bei Deepgram; an DeepL gehen nur die zu übersetzenden Sätze. Die Browserquelle ist nur auf dem eigenen Rechner erreichbar.
 
 ## Bedienung
 
@@ -228,26 +75,40 @@ Die kompakte Leiste zeigt Twitch-Zuschauer, TikTok-Zuschauer, Streamdauer und di
 | `Strg` + `Umschalt` + `H` | Overlay anzeigen/ausblenden |
 | `Strg` + `Umschalt` + `C` | Chat leeren |
 
-Das Overlay lässt sich jederzeit an der oberen Leiste verschieben und an den Fensterkanten skalieren.
+- Das Fenster lässt sich an der oberen Leiste verschieben und an den Kanten in der Größe ändern.
+- **—** blendet das Overlay aus, **✕** beendet es. Über das Symbol im Infobereich (Tray) ist es jederzeit erreichbar.
+- **Spiele im exklusiven Vollbild** verdecken jedes normale Fenster. Das Spiel dafür auf **Randloses Fenster (Borderless)** stellen.
+- **Stream-Safe** wirkt bei den üblichen Aufnahmeprogrammen. Die Wirkung einmal in der Vorschau von OBS oder TikTok LIVE Studio kontrollieren.
 
-**Stream-Safe** ist standardmäßig aktiv. Das Overlay bleibt auf dem eigenen Bildschirm sichtbar, wird aber von unterstützten Bildschirmaufnahme-APIs verborgen. Die Einstellung gilt systemweit für entsprechende Aufnahmeprogramme, nicht ausschließlich für TikTok LIVE Studio. Da Aufnahmeprogramme unterschiedliche Verfahren verwenden können, sollte die Wirkung einmal in deren Vorschau kontrolliert werden.
+## Updates
 
-## Windows-Build erstellen
+Die App sucht beim Start und danach alle vier Stunden nach einer neuen Version, lädt sie im Hintergrund und prüft ihre Prüfsumme. Wann sie installiert wird, legt **Einstellungen → Updates → Updates installieren** fest:
 
-Starte `BUILD-WINDOWS.bat`. Danach liegen im Ordner `dist` sowohl eine portable EXE als auch ein normaler Windows-Installer.
+- **Sofort beim Start** (Standard): Ist das Update in den ersten drei Minuten nach dem Start geladen, installiert die App es und startet einmal neu. Später gefundene Updates warten bis zum Beenden.
+- **Beim Beenden:** Die App startet nie von selbst neu.
+- **Nur auf Knopfdruck.**
 
-## Wichtiger Hinweis zu Spielen
+Mit **Vorabversionen (Beta) erhalten** kommen auch Testversionen an. Die portable Version ersetzt ihre eigene Datei; der Dateiname bleibt gleich.
 
-Ein normales Desktop-Overlay kann über randlosem Vollbild und Fenstermodus angezeigt werden. Echtes exklusives Vollbild übernimmt die Anzeige vollständig; dort können normale Windows-Fenster nicht darüberliegen. In diesem Fall das Spiel auf **Randloses Fenster / Borderless** stellen.
+## Datenschutz
 
-## Datenschutz und Lizenzen
+- Twitch wird direkt vom eigenen PC aus verbunden. Die TikTok-Verbindung läuft über TikTok und den Signaturdienst des Connectors.
+- Anmeldung und alle API-Keys liegen mit der Windows-eigenen Verschlüsselung im Benutzerprofil, getrennt je PC und Windows-Konto.
+- Chatverlauf und Einstellungen bleiben auf dem eigenen Rechner.
+- Chat-Übersetzung sendet die zu übersetzenden Nachrichten an DeepL, die Untertitel senden Mikrofonton an Deepgram und die zu übersetzenden Sätze an DeepL. Beides ist ausgeschaltet, bis ein Key gespeichert und die Funktion aktiviert wird.
 
-- Direkte Twitch-Verbindung vom PC zu Twitch
-- TikTok-Verbindungsaufbau über die vom Connector verwendeten TikTok-/Signaturdienste
-- Keine Speicherung des Twitch-Passworts
-- Client-ID ist öffentlich und kein Geheimnis
-- Token liegen verschlüsselt im Windows-Benutzerprofil
-- Ein optionaler Euler-Stream-API-Key liegt ebenfalls verschlüsselt im Windows-Benutzerprofil
-- Chatverläufe und Einstellungen liegen ausschließlich im lokalen Windows-Benutzerprofil
+## Für Entwickler
 
-Durch die TikTok-Komponente steht Version 0.2.0 unter der GNU Affero General Public License 3.0. Der vollständige Quellcode wird zusammen mit jeder EXE bereitgestellt.
+Voraussetzung ist [Node.js LTS](https://nodejs.org/).
+
+| Befehl | Zweck |
+| --- | --- |
+| `npm install` | Abhängigkeiten installieren |
+| `npm start` | Entwicklerversion starten (eigener Datenordner, Updates abgeschaltet); `STARTEN.bat` erledigt beides |
+| `npm run check` | Syntaxprüfung und Tests |
+
+Releases baut GitHub Actions (`.github/workflows/release.yml`), sobald ein Versions-Tag hochgeladen wird: `v0.2.2` wird eine stabile Version, ein Tag mit Zusatz wie `v0.2.3-beta.1` eine Vorabversion. `RELEASE-GITHUB.bat` prüft den Code, erhöht die Versionsnummer und lädt Code und Tag hoch.
+
+## Lizenz
+
+GNU Affero General Public License 3.0, bedingt durch die TikTok-Komponente. Der vollständige Quellcode liegt in diesem Repository.
