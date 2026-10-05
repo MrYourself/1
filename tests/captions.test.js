@@ -81,9 +81,14 @@ test('only-translations mode leaves out speech in the caption language', async (
   const german = [{ text: 'Wo', language: 'de' }, { text: 'ist', language: 'de' }, { text: 'der', language: 'de' }, { text: 'Shop?', language: 'de' }];
   const options = { target: 'EN-US', onlyTranslated: true, translate: async () => 'Where is the shop?' };
   assert.equal((await buildCaption(english, options)).text, '', 'spoken English produces no caption');
-  const mixed = await buildCaption([...german, ...english], options);
-  assert.equal(mixed.text, 'Where is the shop?');
-  assert.equal(mixed.original, 'Wo ist der Shop?');
+  const pure = await buildCaption(german, options);
+  assert.equal(pure.text, 'Where is the shop?');
+  assert.equal(pure.original, 'Wo ist der Shop?');
+  assert.equal((await buildCaption([...german, ...english], options)).text, '', 'a mixed sentence produces no caption');
+  assert.equal(interimText([...german, ...english], 'EN-US', { onlyTranslated: true }), '');
+  // One English word inside a German sentence does not make it "mixed".
+  const loanword = await buildCaption([...german.slice(0, 3), { text: 'Shop', language: 'en' }], options);
+  assert.equal(loanword.text, 'Where is the shop?');
   const offline = await buildCaption(german, { ...options, translate: async () => null });
   assert.equal(offline.text, '', 'untranslated German is not shown to English viewers');
   assert.equal(interimText(english, 'EN-US', { onlyTranslated: true }), '');

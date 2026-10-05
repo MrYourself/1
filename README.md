@@ -4,7 +4,7 @@ Ein transparentes Windows-Overlay, das Twitch- und TikTok-LIVE-Chats gemeinsam �
 
 ## Neu in Version 0.2.2
 
-- **Stream-Untertitel nur als Übersetzer:** Neuer Schalter „Nur Übersetzungen anzeigen“, standardmäßig an. Was schon in der Untertitel-Sprache gesprochen wird (z. B. Englisch), erscheint nicht mehr als Untertitel; eingeblendet wird nur, was übersetzt wurde. Schalter aus zeigt wie bisher alles Gesprochene.
+- **Stream-Untertitel nur als Übersetzer:** Neuer Schalter „Nur Übersetzungen anzeigen“, standardmäßig an. Was schon in der Untertitel-Sprache gesprochen wird (z. B. Englisch), erscheint nicht mehr als Untertitel; eingeblendet wird nur, was vollständig übersetzt wurde. Sätze, in denen beide Sprachen gemischt sind, erzeugen keinen Untertitel. Schalter aus zeigt wie bisher alles Gesprochene.
 
 ## Neu in Version 0.2.1
 

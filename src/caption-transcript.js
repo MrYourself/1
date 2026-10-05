@@ -73,12 +73,17 @@ function needsTranslation(language, target, text = '') {
 function interimText(words, target, { onlyTranslated = false } = {}) {
   if (!words?.length) return '';
   const text = words.map(word => word.text).join(' ');
+  if (onlyTranslated) {
+    const runs = languageRuns(words);
+    return runs.every(run => needsTranslation(run.language, target, run.text)) ? '…' : '';
+  }
   if (words.some(word => needsTranslation(word.language, target, text))) return '…';
-  return onlyTranslated ? '' : text;
+  return text;
 }
 
-// With `onlyTranslated` the caption is a pure translator: speech that is already in
-// the target language (and anything that could not be translated) is left out.
+// With `onlyTranslated` the caption is a pure translator: a line appears only when
+// all of it was foreign and could be translated. Speech in the target language and
+// sentences that mix both languages produce no caption at all.
 async function buildCaption(words, { target, translate, onlyTranslated = false }) {
   const runs = languageRuns(words);
   const built = await Promise.all(runs.map(async run => {
@@ -91,7 +96,7 @@ async function buildCaption(words, { target, translate, onlyTranslated = false }
     if (translated && comparable(translated) === comparable(run.text)) translated = null;
     return { text: translated || run.text, original: run.text, translated: Boolean(translated) };
   }));
-  const parts = onlyTranslated ? built.filter(part => part.translated) : built;
+  const parts = onlyTranslated && !built.every(part => part.translated) ? [] : built;
   return {
     text: parts.map(part => part.text).join(' ').trim(),
     original: parts.map(part => part.original).join(' ').trim(),
