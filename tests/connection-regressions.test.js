@@ -113,7 +113,8 @@ function configureTwitch(app) {
   `);
 }
 
-test('TikTok connect delivers all spaced initial messages while still filtering live bursts', async () => {
+test('TikTok connect delivers recent initial messages, skips old ones and still filters live bursts', async () => {
+  const nowSeconds = Math.floor(Date.now() / 1000);
   const renderer = rendererContext();
   const app = mainContext({ electron: { net: { fetch: async () => ({
     ok: true,
@@ -124,10 +125,17 @@ test('TikTok connect delivers all spaced initial messages while still filtering 
   class TikTokConnection extends EventEmitter {
     constructor() { super(); connection = this; }
     async connect() {
+      // TikTok opens the socket with the room's last comments, however old they are.
+      for (let i = 0; i < 6; i++) {
+        this.emit('chat', {
+          user: { id: '2', uniqueId: 'earlier' }, content: `Old ${i}`,
+          common: { msgId: `old${i}`, createTime: nowSeconds - 20 * 60 + i * 10 }
+        });
+      }
       for (let i = 0; i < 10; i++) {
         this.emit('chat', {
           user: { id: '1', uniqueId: 'viewer' }, content: `Initial ${i}`,
-          common: { msgId: `m${i}`, createTime: 1700000000 + i * 10 }
+          common: { msgId: `m${i}`, createTime: nowSeconds - 50 + i * 5 }
         });
       }
       return { roomId: '123456789' };
@@ -144,12 +152,12 @@ test('TikTok connect delivers all spaced initial messages while still filtering 
     tiktokModulePromise = Promise.resolve(connector);
   `);
   await app.run('connectTikTok()');
-  assert.equal(renderer.elements.get('messages').children.length, 10);
+  assert.equal(renderer.elements.get('messages').children.length, 10, 'comments from 20 minutes ago are not shown');
   assert.equal(app.run('historyStore.tiktok.entries.length'), 10);
   for (let i = 0; i < 10; i++) {
     connection.emit('chat', {
       user: { id: '1', uniqueId: 'viewer' }, content: `Live ${i}`,
-      common: { msgId: `live${i}`, createTime: 1700000100 + i * 10 }
+      common: { msgId: `live${i}`, createTime: nowSeconds + i * 10 }
     });
   }
   // Live messages use arrival time even if their supplied timestamps are spaced.

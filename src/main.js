@@ -83,6 +83,8 @@ const DEFAULT_SETTINGS = Object.freeze({
 const RECENT_MESSAGE_LIMIT = 500;
 const HISTORY_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const HISTORY_SAVE_INTERVAL_MS = 5000;
+const TIKTOK_BACKLOG_AGE_MS = 60 * 1000;
+const TIKTOK_BACKLOG_WINDOW_MS = 10 * 1000;
 const CAPTIONS_DEFAULT_BOUNDS = Object.freeze({ width: 960, height: 170 });
 const CAPTIONS_MIN_WIDTH = 320;
 const CAPTIONS_MIN_HEIGHT = 90;
@@ -2014,21 +2016,40 @@ async function connectTikTok() {
       });
       tiktokConnection = connection;
       let ready = false;
-      const pendingEvents = createPendingEventBuffer((kind, raw, delivery) => {
-        if (kind === 'message') dispatchChatMessage(normalizeTikTokChat(raw), 'TikTok', delivery);
-        else if (kind === 'gift' && settings.showTikTokGifts) dispatchTikTokGift(normalizeTikTokGift(raw));
-        else if (kind === 'follow' || kind === 'share') dispatchTikTokSocial(normalizeTikTokSocial(raw, kind));
-        else if (kind === 'viewer') updateTikTokViewerMetrics(raw);
-      }, 500);
-      const counts = { message: 0, gift: 0, other: 0 };
+      const openedAt = Date.now();
+      const counts = { message: 0, gift: 0, other: 0, backlog: 0 };
       let connectedAt = null;
+      // TikTok's socket opens with the room's last comments, some of them many minutes
+      // old, whatever processInitialData says. Twitch has no such replay, so the overlay
+      // shows both chats from the moment of the connection. Only the first seconds are
+      // checked: a wrong PC clock must never be able to swallow the live chat.
+      const isBacklog = event => {
+        if (connectedAt && Date.now() - connectedAt > TIKTOK_BACKLOG_WINDOW_MS) return false;
+        if (!(Number(event?.timestamp) < openedAt - TIKTOK_BACKLOG_AGE_MS)) return false;
+        counts.backlog += 1;
+        return true;
+      };
+      const pendingEvents = createPendingEventBuffer((kind, raw, delivery) => {
+        if (kind === 'viewer') {
+          updateTikTokViewerMetrics(raw);
+          return;
+        }
+        const event = kind === 'message' ? normalizeTikTokChat(raw)
+          : kind === 'gift' ? normalizeTikTokGift(raw)
+            : normalizeTikTokSocial(raw, kind);
+        if (isBacklog(event)) return;
+        if (kind === 'message') dispatchChatMessage(event, 'TikTok', delivery);
+        else if (kind === 'gift') { if (settings.showTikTokGifts) dispatchTikTokGift(event); }
+        else dispatchTikTokSocial(event);
+      }, 500);
       const forward = (kind, raw) => {
         counts[kind in counts ? kind : 'other'] += 1;
         pendingEvents.push(kind, raw);
       };
       const summary = () => {
         const minutes = connectedAt ? Math.round((Date.now() - connectedAt) / 60000) : 0;
-        return `nach ${minutes} min, ${counts.message} Kommentare, ${counts.gift} Geschenke, ${counts.other} sonstige Ereignisse`;
+        return `nach ${minutes} min, ${counts.message} Kommentare, ${counts.gift} Geschenke, ${counts.other} sonstige Ereignisse` +
+          (counts.backlog ? `, davon ${counts.backlog} ältere beim Verbinden übersprungen` : '');
       };
 
       connection.on(WebcastEvent.CHAT, data => forward('message', data));
