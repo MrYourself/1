@@ -40,7 +40,15 @@ function friendlyTikTokError(error, username = '', additionalError = null, optio
     return 'TikTok verweigert den Abruf der Geschenkdetails (403). Der Chat wird ohne erweiterte Geschenkinfos erneut versucht.';
   }
   if (searchable.includes('failed to retrieve room id from all sources')) {
-    if (additionalError) return `TikTok-Room-ID konnte nicht gelesen werden: ${errorText(additionalError)}`;
+    // The usual reason is simply that nobody is live: TikTok then serves a page without a room.
+    if (additionalError) {
+      const detail = errorText(additionalError);
+      // Both page lookups worked but found no room; a blocked or slow page keeps its detail.
+      if (/keine passende room-id/i.test(detail) && !/HTTP \d{3}|nicht rechtzeitig/i.test(detail)) {
+        return `${account} wird derzeit nicht als LIVE erkannt (TikTok nennt keinen laufenden Stream). Die App versucht es weiter.`;
+      }
+      return `TikTok-Room-ID konnte nicht gelesen werden: ${detail}`;
+    }
     if (combined.includes('lack of permission')) {
       return 'TikTok liefert keine Room-ID, und der gespeicherte Euler-Key hat keine Berechtigung für den Room-ID-Fallback.';
     }

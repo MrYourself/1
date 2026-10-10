@@ -1990,9 +1990,12 @@ async function connectTikTok() {
     try {
       resolvedRoomId = await resolveTikTokRoomId(username, (url, options) => net.fetch(url, options));
     } catch (networkError) {
+      // TikTok itself says the stream is over: no fallback and no connection attempt.
+      if (networkError?.name === 'TikTokOfflineError') throw networkError;
       try {
         resolvedRoomId = await resolveTikTokRoomIdWithBrowser(username, BrowserWindow);
       } catch (browserError) {
+        if (browserError?.name === 'TikTokOfflineError') throw browserError;
         roomLookupError = new Error(
           `Seitenabruf: ${networkError?.message || networkError}; versteckter Browser: ${browserError?.message || browserError}`,
           { cause: browserError }
@@ -2159,7 +2162,9 @@ async function connectTikTok() {
     emitDiagnostics();
     updateOverallStatus();
     const retryDelay = tikTokRetryDelay(error, reconnectDelay(tiktokRetryAttempt++, 30000, 120000));
-    recordTikTokEvent(`Verbindung fehlgeschlagen: ${tiktokErrorDetail(error, roomLookupError)}; neuer Versuch in ${Math.round(retryDelay / 1000)} s`);
+    recordTikTokEvent(error?.name === 'TikTokOfflineError'
+      ? `Nicht live laut TikTok-Seite; neuer Versuch in ${Math.round(retryDelay / 1000)} s`
+      : `Verbindung fehlgeschlagen: ${tiktokErrorDetail(error, roomLookupError)}; neuer Versuch in ${Math.round(retryDelay / 1000)} s`);
     // Each failed attempt may start a hidden Chromium page, so an offline account
     // is polled with backoff (30 s → 2 min) instead of every 30 seconds.
     scheduleTikTokReconnect(retryDelay);

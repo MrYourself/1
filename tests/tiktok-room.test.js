@@ -98,3 +98,15 @@ test('uses a hidden protected Chromium window as the final room-id fallback', as
   assert.equal(helperWindow.stopped, true);
   assert.equal(helperWindow.destroyed, true);
 });
+
+test('a finished stream counts as offline even though the page still names its room', async () => {
+  const { resolveTikTokRoomId, tikTokStreamEnded } = require('../src/tiktok-room');
+  const page = status => `<script id="SIGI_STATE" type="application/json">${JSON.stringify({ LiveRoom: { liveRoomUserInfo: {
+    user: { uniqueId: 'streamer', roomId: '7694646212615703298', status },
+    liveRoom: { status }
+  } } })}</script>`;
+  const fetchPage = status => async () => ({ ok: true, text: async () => page(status) });
+  assert.equal(await resolveTikTokRoomId('streamer', fetchPage(2)), '7694646212615703298');
+  await assert.rejects(resolveTikTokRoomId('streamer', fetchPage(4)), error => error.name === 'TikTokOfflineError');
+  assert.equal(tikTokStreamEnded({ LiveRoom: { liveRoomUserInfo: { user: { uniqueId: 'other', status: 4 } } } }, 'streamer'), false);
+});

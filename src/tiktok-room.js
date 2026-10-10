@@ -24,6 +24,21 @@ function scriptJson(html, id) {
   }
 }
 
+// A finished stream keeps its room ID on the page and is only marked with status 4.
+// Connecting to such a room fails with errors that look like a broken connection.
+function tikTokStreamEnded(sigiState, username) {
+  const info = sigiState?.LiveRoom?.liveRoomUserInfo;
+  const uniqueId = String(info?.user?.uniqueId || '').replace(/^@/, '').toLowerCase();
+  if (!uniqueId || uniqueId !== String(username || '').toLowerCase()) return false;
+  return Number(info.user.status) === 4 || Number(info.liveRoom?.status) === 4;
+}
+
+function offlineError(username) {
+  const error = new Error(`@${username} ist nicht live (offline).`);
+  error.name = 'TikTokOfflineError';
+  return error;
+}
+
 function parseJsonText(value) {
   if (!value) return null;
   try {
@@ -125,6 +140,7 @@ async function resolveTikTokRoomId(username, fetchImpl, timeoutMs = 15000) {
     if (!response.ok) throw new Error(`TikTok-LIVE-Seite antwortet mit HTTP ${response.status}.`);
     const html = await response.text();
     if (Buffer.byteLength(html, 'utf8') > MAX_PAGE_BYTES) throw new Error('TikTok-LIVE-Seite ist unerwartet groß.');
+    if (tikTokStreamEnded(scriptJson(html, 'SIGI_STATE'), safeUsername)) throw offlineError(safeUsername);
     const roomId = extractTikTokRoomId(html, safeUsername);
     if (!roomId) throw new Error('TikTok-LIVE-Seite enthält keine passende Room-ID.');
     return roomId;
@@ -198,6 +214,7 @@ async function resolveTikTokRoomIdWithBrowser(username, BrowserWindowClass, time
         title: document.title,
         url: location.href
       }))()`, true);
+      if (tikTokStreamEnded(parseJsonText(lastPage?.sigi), safeUsername)) throw offlineError(safeUsername);
       const roomId = extractTikTokRoomIdFromScripts(
         parseJsonText(lastPage?.sigi),
         parseJsonText(lastPage?.universal),
@@ -222,6 +239,7 @@ module.exports = {
   extractTikTokRoomIdByPattern,
   extractTikTokRoomIdFromScripts,
   resolveTikTokRoomId,
+  tikTokStreamEnded,
   resolveTikTokRoomIdWithBrowser,
   scriptJson,
   validRoomId
