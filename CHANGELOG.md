@@ -7,6 +7,8 @@ Alle Versionen mit Download stehen unter [Releases](https://github.com/MrYoursel
 - **TikTok-Stream beendet oder gesperrt:** Endet der LIVE-Stream auf TikTok, erscheint im Overlay eine rote Meldung, die nicht ausblendet, und dazu eine Windows-Benachrichtigung. Nimmt TikTok den Stream selbst vom Netz, lautet sie „TikTok hat den LIVE-Stream gesperrt“.
 - Ist der TikTok-Account offline, steht das jetzt als „nicht live“ da statt als Fehler mit „Room-ID“.
 - Beim Verbinden mit TikTok erscheinen keine Kommentare mehr, die älter als eine Minute sind.
+- **Stream-Untertitel:** Schaltete man sie aus und gleich wieder ein, gingen sie von selbst erneut aus. Das ist behoben. Stürzt das unsichtbare Aufnahmefenster ab, startet es neu.
+- Neues `captions-events.log` (Knopf „Untertitel-Protokoll öffnen“): Schalter, Browserquelle, Mikrofon und Spracherkennung mit Uhrzeit, ohne gesprochenen Text.
 
 ## Version 0.2.2
 

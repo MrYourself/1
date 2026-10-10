@@ -117,6 +117,7 @@ let captionQueue = Promise.resolve();
 let captionSequence = 0;
 let captionDevices = [];
 let captionServer = null;
+let captionsLevelSeen = false;
 let updater = null;
 let updateReleasesUrl = null;
 let announcedUpdate = null;
@@ -491,6 +492,9 @@ function sendCaptions(channel, payload) {
 }
 
 function setCaptionStatus({ state, message }) {
+  if (connectionDiagnostics.captions !== state) {
+    recordCaptionEvent(`Spracherkennung: ${state}${message ? ` (${String(message).slice(0, 200)})` : ''}`);
+  }
   connectionDiagnostics.captions = state;
   connectionDiagnostics.captionsError = state === 'error' || state === 'reconnecting' ? message : null;
   emitDiagnostics();
@@ -599,23 +603,38 @@ function createCaptionsWindow() {
   captionWindow.on('move', rememberBounds);
   captionWindow.on('resize', rememberBounds);
   captionWindow.on('closed', () => {
-    if (captionsWindow === captionWindow) captionsWindow = null;
-    // Closing the window (Alt+F4) switches the captions off instead of leaving the
-    // microphone stream running without a visible window.
-    if (!quitting && settings.captionsEnabled) setCaptionsEnabled(false);
+    // Only a window the user closed (Alt+F4) switches the captions off. A window the
+    // app replaced must not: switching off and on again quickly would otherwise let
+    // the old window's late "closed" turn the captions off a second time.
+    if (captionsWindow !== captionWindow) return;
+    captionsWindow = null;
+    if (!quitting && settings.captionsEnabled) {
+      recordCaptionEvent('Aufnahmefenster wurde geschlossen, Untertitel ausgeschaltet');
+      setCaptionsEnabled(false);
+    }
+  });
+  captionWindow.webContents.on('render-process-gone', (_event, details) => {
+    if (captionsWindow !== captionWindow) return;
+    recordCaptionEvent(`Aufnahmefenster abgestürzt (${details?.reason || 'unbekannt'}), wird neu gestartet`);
+    captionsWindow = null;
+    captionWindow.destroy();
+    captionsLevelSeen = false;
+    if (!quitting && settings.captionsEnabled) applyCaptions();
   });
 }
 
 function startCaptionServer() {
   if (!captionServer || captionServer.url) return;
   captionServer.start()
-    .then(() => {
+    .then(url => {
+      if (url) recordCaptionEvent(`Browserquelle bereit: ${url}`);
       connectionDiagnostics.captionsServerError = null;
       emitDiagnostics();
       send('settings:changed', publicSettings());
     })
     .catch(error => {
       connectionDiagnostics.captionsServerError = `Die Browserquelle konnte nicht gestartet werden: ${error?.message || error}`;
+      recordCaptionEvent(connectionDiagnostics.captionsServerError);
       emitDiagnostics();
     });
 }
@@ -641,7 +660,10 @@ function applyCaptions() {
     captionServer?.stop().catch(() => {});
     connectionDiagnostics.captionsAudioError = null;
     connectionDiagnostics.captionsServerError = null;
-    if (captionsWindow && !captionsWindow.isDestroyed()) captionsWindow.close();
+    const closing = captionsWindow;
+    captionsWindow = null;
+    if (closing && !closing.isDestroyed()) closing.destroy();
+    captionsLevelSeen = false;
     setCaptionStatus({ state: 'off', message: null });
     return;
   }
@@ -663,6 +685,7 @@ function applyCaptions() {
 
 function setCaptionsEnabled(enabled) {
   settings.captionsEnabled = Boolean(enabled);
+  recordCaptionEvent(`Untertitel ${settings.captionsEnabled ? 'eingeschaltet' : 'ausgeschaltet'} (Tray oder Fenster)`);
   try {
     saveSettings();
   } catch (error) {
@@ -781,6 +804,10 @@ function registerCaptionsIpc() {
   });
   ipcMain.on('captions:level', (event, payload) => {
     if (!isCaptionsSender(event)) return;
+    if (!captionsLevelSeen) {
+      captionsLevelSeen = true;
+      recordCaptionEvent('Mikrofon liefert Ton');
+    }
     send('captions:level', {
       level: Math.min(100, Math.max(0, Number(payload?.level) || 0)),
       speaking: payload?.speaking === true
@@ -798,6 +825,8 @@ function registerCaptionsIpc() {
     if (!isCaptionsSender(event)) return;
     const next = message ? String(message).slice(0, 300) : null;
     if (connectionDiagnostics.captionsAudioError === next) return;
+    recordCaptionEvent(next ? `Mikrofon: ${next}` : 'Mikrofon gestartet');
+    if (next) captionsLevelSeen = false;
     connectionDiagnostics.captionsAudioError = next;
     emitDiagnostics();
   });
@@ -845,6 +874,16 @@ function twitchErrorMessage(body) {
   } catch {
     return String(body || 'keine Angabe').replace(/\s+/g, ' ').slice(0, 120);
   }
+}
+
+function captionsLogPath() {
+  return path.join(app.getPath('userData'), 'captions-events.log');
+}
+
+// What the captions did and when: switch, browser source, microphone, speech
+// recognition. Spoken text is never written.
+function recordCaptionEvent(message) {
+  appendEventLog(captionsLogPath, message, 300);
 }
 
 function tiktokLogPath() {
@@ -2336,6 +2375,9 @@ function registerIpc() {
       updater?.check();
     }
     if (CAPTION_SETTING_KEYS.some((key, index) => settings[key] !== oldCaptions[index])) {
+      if (settings.captionsEnabled !== oldCaptions[0]) {
+        recordCaptionEvent(`Untertitel ${settings.captionsEnabled ? 'eingeschaltet' : 'ausgeschaltet'} (Einstellungen)`);
+      }
       applyCaptions();
       rebuildTray();
     }
@@ -2361,6 +2403,11 @@ function registerIpc() {
   registerTrustedHandler('tiktok:open-log', async () => {
     if (!fs.existsSync(tiktokLogPath())) throw new Error('Es gibt noch kein TikTok-Protokoll. Es entsteht beim ersten Verbindungsversuch.');
     const failure = await shell.openPath(tiktokLogPath());
+    if (failure) throw new Error(failure);
+  });
+  registerTrustedHandler('captions:open-log', async () => {
+    if (!fs.existsSync(captionsLogPath())) throw new Error('Es gibt noch kein Untertitel-Protokoll.');
+    const failure = await shell.openPath(captionsLogPath());
     if (failure) throw new Error(failure);
   });
   registerTrustedHandler('tiktok:set-api-key', (_event, value) => {
@@ -2468,6 +2515,7 @@ async function initializeApp() {
     onError: error => reportStorageError('Untertitel-Browserquelle', error),
     onClients: count => {
       if (connectionDiagnostics.captionsClients === count) return;
+      recordCaptionEvent(`Verbundene Browserquellen: ${count}`);
       connectionDiagnostics.captionsClients = count;
       emitDiagnostics();
     }
@@ -2487,6 +2535,7 @@ async function initializeApp() {
   updater = createAppUpdater();
   updater.start();
   registerShortcuts();
+  recordCaptionEvent(`App gestartet, Untertitel ${settings.captionsEnabled ? 'an' : 'aus'}, Aufnahmefenster ${settings.captionsWindowVisible ? 'sichtbar' : 'unsichtbar'}`);
   applyCaptions();
   const authenticated = await hydrateSession();
   mainWindow.show();

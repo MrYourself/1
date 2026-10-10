@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('overlay', {
   clear: () => ipcRenderer.invoke('overlay:clear'),
   openExternal: url => ipcRenderer.invoke('external:open', url),
   openTikTokLog: () => ipcRenderer.invoke('tiktok:open-log'),
+  openCaptionsLog: () => ipcRenderer.invoke('captions:open-log'),
   quit: () => ipcRenderer.invoke('app:quit'),
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
   installUpdate: () => ipcRenderer.invoke('update:install'),
