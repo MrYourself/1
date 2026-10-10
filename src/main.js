@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell, globalShortcut, Tray, Menu, nativeImage, safeStorage, screen, net, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, globalShortcut, Tray, Menu, nativeImage, safeStorage, screen, net, clipboard, Notification } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
@@ -84,6 +84,8 @@ const RECENT_MESSAGE_LIMIT = 500;
 const HISTORY_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const HISTORY_SAVE_INTERVAL_MS = 5000;
 const TIKTOK_BACKLOG_AGE_MS = 60 * 1000;
+// Value of the control message TikTok sends when moderation takes a stream down.
+const TIKTOK_STREAM_SUSPENDED = 4;
 const TIKTOK_BACKLOG_WINDOW_MS = 10 * 1000;
 const CAPTIONS_DEFAULT_BOUNDS = Object.freeze({ width: 960, height: 170 });
 const CAPTIONS_MIN_WIDTH = 320;
@@ -145,6 +147,7 @@ let twitchReconnectAttempt = 0;
 let ircReconnectAttempt = 0;
 let eventReconnectAttempt = 0;
 let tiktokRetryAttempt = 0;
+let tiktokWasLive = false;
 let streamMetrics = {
   twitchLive: false,
   twitchViewers: null,
@@ -1878,8 +1881,26 @@ function discardTikTokConnection(connection) {
   tiktokConnecting.get(connection)?.then(disconnect, () => {});
 }
 
+// A stream that ends on TikTok's side is easy to miss while the Twitch stream goes
+// on, so it gets a message that stays in the chat and a Windows notification.
+function announceTikTokEnd(suspended) {
+  if (!tiktokWasLive) return;
+  tiktokWasLive = false;
+  const text = suspended
+    ? 'TikTok hat den LIVE-Stream gesperrt. Auf TikTok wird nicht mehr gesendet.'
+    : 'Der TikTok-LIVE-Stream ist beendet. Auf TikTok wird nicht mehr gesendet.';
+  send('chat:system', { text, error: true, sticky: true });
+  try {
+    if (typeof Notification === 'function' && Notification.isSupported()) {
+      new Notification({ title: suspended ? 'TikTok-LIVE gesperrt' : 'TikTok-LIVE beendet', body: text }).show();
+    }
+  } catch {}
+}
+
 function closeTikTokConnection(clearHistory = false) {
   ++tiktokGeneration;
+  // Changing the account or reconnecting by hand is not a stream end.
+  tiktokWasLive = false;
   clearTimeout(tiktokReconnectTimer);
   tiktokReconnectTimer = null;
   const connection = tiktokConnection;
@@ -2061,15 +2082,17 @@ async function connectTikTok() {
       connection.on(WebcastEvent.SHARE, data => forward('share', data));
       connection.on(WebcastEvent.ROOM_USER, data => forward('viewer', data));
       let streamEnded = false;
-      connection.on(WebcastEvent.STREAM_END, () => {
+      connection.on(WebcastEvent.STREAM_END, event => {
         if (generation !== tiktokGeneration || connection !== tiktokConnection) return;
+        const suspended = Number(event?.action) === TIKTOK_STREAM_SUSPENDED;
         // The connector disconnects itself after a stream end; that DISCONNECTED
         // event must not replace the slower stream-end retry below.
         streamEnded = true;
-        recordTikTokEvent(`Stream-Ende gemeldet ${summary()}`);
+        recordTikTokEvent(`${suspended ? 'Stream von TikTok gesperrt' : 'Stream-Ende gemeldet'} ${summary()}`);
         historyStore.tiktok = null;
         saveHistorySoon();
         send('chat:clear', { platform: 'tiktok' });
+        announceTikTokEnd(suspended);
         updateStreamMetrics({ tiktokLive: false, tiktokViewers: null, tiktokStartedAt: null });
         connectionDiagnostics.tiktokState = 'waiting';
         connectionDiagnostics.tiktokError = null;
@@ -2148,6 +2171,7 @@ async function connectTikTok() {
     updateStreamMetrics({ tiktokLive: true, tiktokStartedAt: startedAt });
     setConnectionPart('tiktok', true);
     opened.releasePending();
+    tiktokWasLive = true;
     recordTikTokEvent(`Verbunden mit Raum ${connected?.roomId || resolvedRoomId || connection.roomId || 'unbekannt'}`);
     send('chat:system', { text: `TikTok-Chat für @${username} ist aktiv.` });
   } catch (error) {
@@ -2162,6 +2186,8 @@ async function connectTikTok() {
     emitDiagnostics();
     updateOverallStatus();
     const retryDelay = tikTokRetryDelay(error, reconnectDelay(tiktokRetryAttempt++, 30000, 120000));
+    // The connection dropped without a stream-end signal and TikTok now says "not live".
+    if (error?.name === 'TikTokOfflineError') announceTikTokEnd(false);
     recordTikTokEvent(error?.name === 'TikTokOfflineError'
       ? `Nicht live laut TikTok-Seite; neuer Versuch in ${Math.round(retryDelay / 1000)} s`
       : `Verbindung fehlgeschlagen: ${tiktokErrorDetail(error, roomLookupError)}; neuer Versuch in ${Math.round(retryDelay / 1000)} s`);

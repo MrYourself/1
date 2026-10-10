@@ -2,6 +2,12 @@
 
 Alle Versionen mit Download stehen unter [Releases](https://github.com/MrYourself/1/releases).
 
+## Version 0.2.3
+
+- **TikTok-Stream beendet oder gesperrt:** Endet der LIVE-Stream auf TikTok, erscheint im Overlay eine rote Meldung, die nicht ausblendet, und dazu eine Windows-Benachrichtigung. Nimmt TikTok den Stream selbst vom Netz, lautet sie „TikTok hat den LIVE-Stream gesperrt“.
+- Ist der TikTok-Account offline, steht das jetzt als „nicht live“ da statt als Fehler mit „Room-ID“.
+- Beim Verbinden mit TikTok erscheinen keine Kommentare mehr, die älter als eine Minute sind.
+
 ## Version 0.2.2
 
 - **Stream-Untertitel nur als Übersetzer:** Neuer Schalter „Nur Übersetzungen anzeigen“, standardmäßig an. Was schon in der Untertitel-Sprache gesprochen wird (z. B. Englisch), erscheint nicht mehr als Untertitel; eingeblendet wird nur, was vollständig übersetzt wurde. Sätze, in denen beide Sprachen gemischt sind, erzeugen keinen Untertitel. Schalter aus zeigt wie bisher alles Gesprochene.

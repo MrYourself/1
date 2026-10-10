@@ -685,6 +685,8 @@ function addSystemMessage(payload) {
   markShown(article);
   dom.messages.append(article);
   trimMessages();
+  // Sticky notices (a stream that ended) stay until newer messages push them out.
+  if (payload.sticky) article.dataset.pinned = 'true';
   scheduleFade(article);
   updateEmptyState();
 }

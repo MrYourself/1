@@ -257,6 +257,39 @@ test('a TikTok connection abandoned while connecting is closed once it is up', a
   assert.equal(app.run('tiktokConnection'), null);
 });
 
+test('a TikTok stream that is ended or suspended is announced once with its own notice', async () => {
+  let connection;
+  class TikTokConnection extends EventEmitter {
+    constructor() { super(); connection = this; }
+    async connect() { return { roomId: '123456789' }; }
+    async disconnect() {}
+  }
+  const app = mainContext({ electron: { net: { fetch: async () => ({ ok: true,
+    text: async () => '<script id="SIGI_STATE">{"LiveRoom":{"liveRoomUserInfo":{"user":{"uniqueId":"streamer","roomId":"123456789"}}}}</script>'
+  }) } } });
+  app.context.connector = {
+    TikTokLiveConnection: TikTokConnection,
+    WebcastEvent: { CHAT: 'chat', GIFT: 'gift', FOLLOW: 'follow', SHARE: 'share', ROOM_USER: 'viewer', STREAM_END: 'end' },
+    ControlEvent: { ERROR: 'error', DISCONNECTED: 'disconnected' }
+  };
+  app.context.notices = [];
+  app.run(`
+    settings.tiktokUsername = 'streamer';
+    tiktokModulePromise = Promise.resolve(connector);
+    send = (channel, payload) => { if (channel === 'chat:system' && payload.sticky) notices.push(payload.text); };
+  `);
+  await app.run('connectTikTok()');
+  connection.emit('end', { action: 4 });
+  assert.equal(app.context.notices.length, 1);
+  assert.match(app.context.notices[0], /gesperrt/);
+  app.run('announceTikTokEnd(false)');
+  assert.equal(app.context.notices.length, 1, 'later offline checks do not repeat the notice');
+
+  await app.run('connectTikTok()');
+  connection.emit('end', { action: 3 });
+  assert.match(app.context.notices[1], /beendet/);
+});
+
 test('Twitch clear preserves TikTok history and visible messages; local clear removes both', () => {
   const app = mainContext();
   const renderer = rendererContext();
