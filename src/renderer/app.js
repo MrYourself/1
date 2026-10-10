@@ -26,7 +26,7 @@ const dom = Object.fromEntries([
   'captionsLevelBar', 'captionsGateMark', 'captionsTargetInput', 'captionsBackgroundInput', 'captionsFontSizeInput',
   'captionsFontSizeOutput', 'captionsOriginalInput', 'captionsOnlyTranslatedInput', 'captionsErrorText',
   'captionsUrlInput', 'copyCaptionsUrlButton', 'captionsUrlHelp', 'captionsTextColorInput', 'captionsBoxInput',
-  'captionsWindowInput', 'captionsBackgroundField', 'captionsSourceStatus', 'captionsTestButton',
+  'captionsWindowInput', 'captionsBackgroundField', 'captionsSourceStatus', 'captionsTestButton', 'captionsSourceFileButton', 'captionsSourceFileHelp',
   'updateStatusText', 'checkUpdateButton', 'installUpdateButton', 'downloadUpdateButton', 'updateBetaInput', 'updateInstallInput',
   'demoButton', 'clearButton', 'accountLabel', 'reconnectButton', 'logoutButton'
 ].map(id => [id, document.getElementById(id)]));
@@ -780,6 +780,18 @@ dom.clearButton.addEventListener('click', () => window.overlay.clear().catch(err
 dom.demoButton.addEventListener('click', showDemoMessages);
 dom.reconnectButton.addEventListener('click', () => window.overlay.reconnect().catch(error => addSystemMessage({ text: error.message, error: true })));
 dom.logoutButton.addEventListener('click', () => window.overlay.logout().catch(error => addSystemMessage({ text: error.message, error: true })));
+const SOURCE_FILE_HELP = dom.captionsSourceFileHelp.textContent;
+let sourceFileHelpTimer = null;
+dom.captionsSourceFileButton.addEventListener('click', async () => {
+  clearTimeout(sourceFileHelpTimer);
+  try {
+    await window.overlay.revealCaptionsSourceFile();
+    dom.captionsSourceFileHelp.textContent = 'Der Ordner ist geöffnet und der Dateipfad liegt in der Zwischenablage. In OBS bei „Lokale Datei“ einfügen.';
+  } catch (error) {
+    dom.captionsSourceFileHelp.textContent = error.message;
+  }
+  sourceFileHelpTimer = window.setTimeout(() => { dom.captionsSourceFileHelp.textContent = SOURCE_FILE_HELP; }, 8000);
+});
 dom.captionsLogButton.addEventListener('click', () => window.overlay.openCaptionsLog().catch(error => addSystemMessage({ text: error.message, error: true })));
 dom.tiktokLogButton.addEventListener('click', () => window.overlay.openTikTokLog().catch(error => addSystemMessage({ text: error.message, error: true })));
 dom.eulerButton.addEventListener('click', () => window.overlay.openExternal('https://www.eulerstream.com/').catch(error => addSystemMessage({ text: error.message, error: true })));

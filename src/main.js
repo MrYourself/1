@@ -24,6 +24,7 @@ const { buildCaption, interimText, parseDeepgramMessage } = require('./caption-t
 const { createUpdater, releasesUrl } = require('./updater');
 const { createPortableUpdate } = require('./portable-update');
 const { createCaptionServer } = require('./caption-server');
+const { captionSourceHtml } = require('./caption-source-file');
 const {
   isAllowedExternalUrl,
   reconnectDelay,
@@ -874,6 +875,10 @@ function twitchErrorMessage(body) {
   } catch {
     return String(body || 'keine Angabe').replace(/\s+/g, ' ').slice(0, 120);
   }
+}
+
+function captionSourceFilePath() {
+  return path.join(app.getPath('userData'), 'Untertitel-Quelle.html');
 }
 
 function captionsLogPath() {
@@ -2404,6 +2409,13 @@ function registerIpc() {
     if (!fs.existsSync(tiktokLogPath())) throw new Error('Es gibt noch kein TikTok-Protokoll. Es entsteht beim ersten Verbindungsversuch.');
     const failure = await shell.openPath(tiktokLogPath());
     if (failure) throw new Error(failure);
+  });
+  registerTrustedHandler('captions:reveal-source-file', () => {
+    const file = captionSourceFilePath();
+    fs.writeFileSync(file, captionSourceHtml(), 'utf8');
+    clipboard.writeText(file);
+    shell.showItemInFolder(file);
+    return file;
   });
   registerTrustedHandler('captions:open-log', async () => {
     if (!fs.existsSync(captionsLogPath())) throw new Error('Es gibt noch kein Untertitel-Protokoll.');

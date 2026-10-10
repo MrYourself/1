@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('overlay', {
   translationUsage: () => ipcRenderer.invoke('translation:usage'),
   setDeepgramApiKey: apiKey => ipcRenderer.invoke('captions:set-api-key', apiKey),
   copyCaptionsUrl: () => ipcRenderer.invoke('captions:copy-url'),
+  revealCaptionsSourceFile: () => ipcRenderer.invoke('captions:reveal-source-file'),
   testCaptions: () => ipcRenderer.invoke('captions:test'),
   onCaptionDevices: listen('captions:devices'),
   onCaptionLevel: listen('captions:level'),

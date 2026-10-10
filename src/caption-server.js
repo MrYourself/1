@@ -22,7 +22,8 @@ const SECURITY_HEADERS = {
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
-  'Content-Security-Policy': "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'"
+  // No frame-ancestors rule: the local source file for OBS embeds this page.
+  'Content-Security-Policy': "default-src 'self'; base-uri 'none'; object-src 'none'"
 };
 
 // Serves the caption overlay for browser sources. It binds to the loopback address

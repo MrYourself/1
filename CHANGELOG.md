@@ -2,6 +2,11 @@
 
 Alle Versionen mit Download stehen unter [Releases](https://github.com/MrYourself/1/releases).
 
+## Version 0.2.4
+
+- **Untertitel in OBS ohne „Aktualisieren“:** Neue lokale Quelldatei für OBS (Einstellungen → Stream-Untertitel → „Lokale Datei für OBS anzeigen“). Sie zeigt die Untertitel auch dann, wenn OBS vor dem Overlay gestartet wurde, und findet das Overlay nach einem Neustart von selbst wieder.
+- Die Untertitel-Seite verbindet sich nach einem Neustart des Overlays selbst neu, statt sich auf den eingebauten Browser von OBS zu verlassen.
+
 ## Version 0.2.3
 
 - **TikTok-Stream beendet oder gesperrt:** Endet der LIVE-Stream auf TikTok, erscheint im Overlay eine rote Meldung, die nicht ausblendet, und dazu eine Windows-Benachrichtigung. Nimmt TikTok den Stream selbst vom Netz, lautet sie „TikTok hat den LIVE-Stream gesperrt“.

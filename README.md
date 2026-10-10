@@ -56,7 +56,8 @@ Die Untertitel sind ein Übersetzer für die Zuschauer: Wird Deutsch gesprochen,
 2. Im Overlay unter **Einstellungen → Stream-Untertitel** den Deepgram-Key speichern und die Untertitel einschalten. Für die Übersetzung wird der DeepL-Key aus der Chat-Übersetzung verwendet.
 3. Mikrofon wählen und die **Sprach-Schwelle** einstellen: Beim Sprechen geht der Pegelbalken über die weiße Markierung, in Ruhe bleibt er darunter.
 4. Die Adresse unter **Browserquelle** kopieren (z. B. `http://127.0.0.1:17873/captions`) und einbinden:
-   - **OBS:** Quelle **Browser** hinzufügen, Adresse einfügen, Größe frei wählen (z. B. 1600 × 220).
+   - **OBS (empfohlen):** Im Overlay auf **Lokale Datei für OBS anzeigen** klicken. In OBS eine Quelle **Browser** hinzufügen, **Lokale Datei** anhaken, die Datei `Untertitel-Quelle.html` wählen und die Größe festlegen (z. B. 1600 × 220). So erscheinen die Untertitel auch, wenn OBS vor dem Overlay gestartet oder das Overlay zwischendurch neu gestartet wurde.
+   - **OBS mit Adresse:** Quelle **Browser** hinzufügen und die Adresse einfügen. Wurde OBS vor dem Overlay gestartet, muss die Quelle einmal aktualisiert werden.
    - **TikTok LIVE Studio:** Quelle **Link** hinzufügen und die Adresse einfügen.
 5. Mit **Testzeile senden** prüfen, ob der Untertitel im Stream ankommt.
 

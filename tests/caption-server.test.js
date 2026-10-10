@@ -187,3 +187,23 @@ test('sanitizes the new caption appearance settings', () => {
   }), { captionsBox: false, captionsTextColor: '#ffcc00' });
   assert.deepEqual(sanitizeSettingsUpdate({ captionsTextColor: 'red' }), {});
 });
+
+test('the local source file embeds the caption page and retries the usual and the fallback ports', () => {
+  const { captionSourceHtml } = require('../src/caption-source-file');
+  const html = captionSourceHtml();
+  assert.match(html, /var ports = \[17873,17874,17875,17876,17877,17878,17879,17880,17881,17882\];/);
+  assert.match(html, /'http:\/\/127\.0\.0\.1:' \+ port \+ '\/captions/);
+  assert.match(html, /captions-alive/);
+  assert.doesNotMatch(html, /https?:\/\/(?!127\.0\.0\.1)/, 'nothing but the local caption server is contacted');
+});
+
+test('the caption page may be embedded and reports that it is alive', async () => {
+  await withServer(async (server, url) => {
+    const page = await get(`${url}?t=123`);
+    assert.equal(page.status, 200);
+    assert.doesNotMatch(page.headers['content-security-policy'], /frame-ancestors/);
+    const script = (await get(`${new URL(url).origin}/overlay.js`)).body;
+    assert.match(script, /postMessage\('captions-alive'/);
+    assert.match(script, /setTimeout\(connect, RETRY_MS\)/);
+  });
+});
