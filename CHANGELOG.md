@@ -6,6 +6,7 @@ Alle Versionen mit Download stehen unter [Releases](https://github.com/MrYoursel
 
 - **Untertitel in OBS ohne „Aktualisieren“:** Neue lokale Quelldatei für OBS (Einstellungen → Stream-Untertitel → „Lokale Datei für OBS anzeigen“). Sie zeigt die Untertitel auch dann, wenn OBS vor dem Overlay gestartet wurde, und findet das Overlay nach einem Neustart von selbst wieder.
 - Die Untertitel-Seite verbindet sich nach einem Neustart des Overlays selbst neu, statt sich auf den eingebauten Browser von OBS zu verlassen.
+- **Fensterposition auf Handhelds:** Das Overlay lässt sich nicht mehr maximieren. Geräte im Handheld- oder Tablet-Modus (z. B. ROG Ally) öffneten es bisher bildschirmfüllend, sodass es erst herausgezogen werden musste. Es startet jetzt an der zuletzt gespeicherten Stelle und wird auf kleinen Bildschirmen passend verkleinert.
 
 ## Version 0.2.3
 

@@ -105,6 +105,23 @@ function sanitizeBounds(value, fallback = { width: 520, height: 760 }, minWidth 
   return bounds;
 }
 
+// Shrinks and moves a window so that all of it lies inside a screen's work area.
+// Small screens with high scaling (handhelds) are lower than the default window.
+function fitBoundsToWorkArea(bounds, workArea, minWidth = 360, minHeight = 320) {
+  const width = Math.max(Math.min(bounds.width, workArea.width), Math.min(minWidth, workArea.width));
+  const height = Math.max(Math.min(bounds.height, workArea.height), Math.min(minHeight, workArea.height));
+  const hasPosition = Number.isFinite(bounds.x) && Number.isFinite(bounds.y);
+  // Without a stored position the overlay starts at the right edge, vertically centred.
+  const x = hasPosition ? bounds.x : workArea.x + workArea.width - width;
+  const y = hasPosition ? bounds.y : workArea.y + Math.round((workArea.height - height) / 2);
+  return {
+    x: Math.min(Math.max(x, workArea.x), workArea.x + workArea.width - width),
+    y: Math.min(Math.max(y, workArea.y), workArea.y + workArea.height - height),
+    width,
+    height
+  };
+}
+
 function reconnectDelay(attempt, base = 3000, maximum = 30000) {
   const safeAttempt = Math.max(0, Math.min(10, Number.isFinite(attempt) ? attempt : 0));
   return Math.min(maximum, base * (2 ** safeAttempt));
@@ -122,6 +139,7 @@ function isAllowedExternalUrl(value, additionalHosts = []) {
 
 module.exports = {
   boundedNumber,
+  fitBoundsToWorkArea,
   isAllowedExternalUrl,
   normalizeTwitchChannel,
   reconnectDelay,

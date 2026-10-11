@@ -26,6 +26,7 @@ const { createPortableUpdate } = require('./portable-update');
 const { createCaptionServer } = require('./caption-server');
 const { captionSourceHtml } = require('./caption-source-file');
 const {
+  fitBoundsToWorkArea,
   isAllowedExternalUrl,
   reconnectDelay,
   sanitizeBounds,
@@ -1070,11 +1071,22 @@ function createTrayImage() {
   return image;
 }
 
-function createWindow() {
+// The stored position, fitted into the screen it belongs to. A position on a screen
+// that is gone (handheld undocked from its monitor) falls back to the main screen.
+function overlayBounds() {
   const saved = sanitizeBounds(settings.bounds, DEFAULT_SETTINGS.bounds);
-  const bounds = validBounds(saved) ? saved : DEFAULT_SETTINGS.bounds;
+  const usable = validBounds(saved) ? saved : { width: saved.width, height: saved.height };
+  const display = Number.isFinite(usable.x) ? screen.getDisplayMatching(usable) : screen.getPrimaryDisplay();
+  return fitBoundsToWorkArea(usable, display.workArea);
+}
+
+function createWindow() {
+  const bounds = overlayBounds();
   mainWindow = new BrowserWindow({
     ...bounds,
+    // Handheld and tablet modes open every window maximized. The overlay must keep
+    // its own size and place, so it cannot be maximized at all.
+    maximizable: false,
     minWidth: 360,
     minHeight: 320,
     transparent: true,
@@ -1115,6 +1127,10 @@ function createWindow() {
   });
   mainWindow.once('ready-to-show', () => {
     mainWindow.showInactive();
+    // Windows may still have maximized or moved the window while showing it.
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    const shown = mainWindow.getBounds();
+    if (['x', 'y', 'width', 'height'].some(key => shown[key] !== bounds[key])) mainWindow.setBounds(bounds);
     send('app:state', publicState());
   });
 
