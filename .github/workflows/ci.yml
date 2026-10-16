@@ -1,0 +1,38 @@
+name: Checks
+
+# Every push to main and every pull request (including Dependabot's update proposals)
+# is tested, built as an installer and started once in self-test mode. Nothing is published.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run check
+
+      # The installer build also writes app-update.yml, which the self-test checks.
+      - name: Build
+        run: npx electron-builder --win nsis --x64 --publish never
+
+      - name: Self-test the packaged app
+        shell: pwsh
+        run: ./scripts/smoke-test.ps1

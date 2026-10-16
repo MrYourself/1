@@ -2492,6 +2492,11 @@ function registerIpc() {
 // single-instance lock, so one copy could log the other out or block its start.
 if (app && app.isPackaged === false) app.setPath('userData', path.join(app.getPath('appData'), 'twitch-chat-overlay-dev'));
 
+// Self-test after a build (--smoke-test). It runs with an empty, temporary data folder,
+// so it never touches a real login, key or chat history.
+const smokeTest = app && process.argv.includes('--smoke-test');
+if (smokeTest) app.setPath('userData', path.join(app.getPath('temp'), `twitch-chat-overlay-smoke-${process.pid}`));
+
 const singleInstanceLock = app.requestSingleInstanceLock();
 if (!singleInstanceLock) {
   app.quit();
@@ -2561,7 +2566,7 @@ async function initializeApp() {
   createWindow();
   createTray();
   updater = createAppUpdater();
-  updater.start();
+  if (!smokeTest) updater.start();
   registerShortcuts();
   recordCaptionEvent(`App gestartet, Untertitel ${settings.captionsEnabled ? 'an' : 'aus'}, Aufnahmefenster ${settings.captionsWindowVisible ? 'sichtbar' : 'unsichtbar'}`);
   applyCaptions();
@@ -2578,7 +2583,13 @@ async function initializeApp() {
 
 // A second instance only hands focus to the first one. It must never initialize,
 // refresh the single-use Twitch refresh token or overwrite the stored history.
-if (singleInstanceLock) {
+if (singleInstanceLock && smokeTest) {
+  const finishSmokeTest = require('./smoke-test').startSmokeTest(app);
+  app.whenReady()
+    .then(initializeApp)
+    .then(() => finishSmokeTest({ mainWindow, captionServer, updater, sourceRoot: __dirname }))
+    .catch(error => finishSmokeTest({ initError: error }));
+} else if (singleInstanceLock) {
   app.whenReady().then(initializeApp).catch(error => {
     console.error('Anwendungsstart fehlgeschlagen:', error);
     if (mainWindow && !mainWindow.isDestroyed()) {

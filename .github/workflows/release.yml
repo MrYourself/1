@@ -43,12 +43,19 @@ jobs:
       - name: Build
         run: npx electron-builder --win nsis portable --x64 --publish never
 
+      # Starts the built app once in self-test mode; a version that does not start
+      # or misses files is not published.
+      - name: Self-test the packaged app
+        shell: pwsh
+        run: ./scripts/smoke-test.ps1
+
       - name: Publish the release
         shell: bash
         run: |
           shopt -s nullglob
           files=(dist/*.exe dist/*.exe.blockmap)
-          # Stable builds produce latest.yml, pre-releases (v1.2.3-beta.1) beta.yml.
+          # electron-builder writes latest.yml, also for pre-releases; beta.yml and alpha.yml
+          # are only picked up in case a future version writes them.
           channels=()
           for channel in latest beta alpha; do
             if [ -f "dist/$channel.yml" ]; then channels+=("dist/$channel.yml"); fi

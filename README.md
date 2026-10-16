@@ -108,6 +108,8 @@ Voraussetzung ist [Node.js LTS](https://nodejs.org/).
 | `npm start` | Entwicklerversion starten (eigener Datenordner, Updates abgeschaltet); `STARTEN.bat` erledigt beides |
 | `npm run check` | Syntaxprüfung und Tests |
 
+Jeder Push auf `main` und jeder Pull Request wird auf GitHub getestet, als Installer gebaut und einmal im Selbsttest-Modus gestartet (`.github/workflows/ci.yml`, `scripts/smoke-test.ps1`). Dependabot schlägt monatlich Updates der Abhängigkeiten als Pull Requests vor.
+
 Releases baut GitHub Actions (`.github/workflows/release.yml`), sobald ein Versions-Tag hochgeladen wird: `v0.2.2` wird eine stabile Version, ein Tag mit Zusatz wie `v0.2.3-beta.1` eine Vorabversion. `RELEASE-GITHUB.bat` prüft den Code, erhöht die Versionsnummer und lädt Code und Tag hoch.
 
 ## Lizenz

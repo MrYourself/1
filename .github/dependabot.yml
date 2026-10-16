@@ -1,0 +1,21 @@
+# Monthly update proposals as pull requests. Minor and patch updates of the npm
+# packages arrive together in one pull request; major updates (a new Electron
+# version, for example) each get their own. Every proposal runs the checks workflow.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ['*']
