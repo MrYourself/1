@@ -2,6 +2,11 @@
 
 Alle Versionen mit Download stehen unter [Releases](https://github.com/MrYourself/1/releases).
 
+## Version 0.2.5
+
+- **Aktualisierte Bausteine:** Electron 44.7.1 (Sicherheitskorrekturen), TikTok-Bibliothek 2.5.0, ws 8.22.0.
+- Jede gebaute Version startet vor der Veröffentlichung einmal im Selbsttest; eine Version, die nicht startet oder Dateien vermisst, wird nicht veröffentlicht.
+
 ## Version 0.2.4
 
 - **Untertitel in OBS ohne „Aktualisieren“:** Neue lokale Quelldatei für OBS (Einstellungen → Stream-Untertitel → „Lokale Datei für OBS anzeigen“). Sie zeigt die Untertitel auch dann, wenn OBS vor dem Overlay gestartet wurde, und findet das Overlay nach einem Neustart von selbst wieder.

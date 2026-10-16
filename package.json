@@ -67,8 +67,5 @@
     "portable": {
       "artifactName": "Twitch-Chat-Overlay-${version}.${ext}"
     }
-  },
-  "allowScripts": {
-    "electron@44.1.0": true
   }
 }
