@@ -14,11 +14,11 @@
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
-    "tiktok-live-connector": "^2.4.4",
-    "ws": "^8.18.3"
+    "tiktok-live-connector": "^2.5.0",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
-    "electron": "44.1.0",
+    "electron": "44.7.1",
     "electron-builder": "26.15.3"
   },
   "build": {
