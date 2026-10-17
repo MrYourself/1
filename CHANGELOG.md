@@ -4,6 +4,8 @@ Alle Versionen mit Download stehen unter [Releases](https://github.com/MrYoursel
 
 ## Version 0.2.5
 
+- **Twitch-Abos, Resubs, verschenkte Abos und Raids werden wieder angezeigt**, auch Prime-Abos. Twitch schickt bei Ereignissen außerhalb eines Shared Chats ein leeres Feld für dessen Abzeichen mit; daran ist die Verarbeitung jedes Ereignisses der Hauptverbindung abgestürzt. Chatnachrichten kamen deshalb nur über die Ersatzverbindung an, Abos und Raids gar nicht.
+- Ein einzelnes Twitch-Ereignis, das sich nicht anzeigen lässt, erscheint jetzt in der Diagnose, statt still zu verschwinden.
 - **Aktualisierte Bausteine:** Electron 44.7.1 (Sicherheitskorrekturen), TikTok-Bibliothek 2.5.0, ws 8.22.0.
 - Jede gebaute Version startet vor der Veröffentlichung einmal im Selbsttest; eine Version, die nicht startet oder Dateien vermisst, wird nicht veröffentlicht.
 

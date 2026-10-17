@@ -546,3 +546,30 @@ test('failed EventSub handover closes the old socket and schedules recovery', as
   await app.fire(app.run('reconnectTimer'));
   assert.equal(app.sockets.length, 3);
 });
+
+test('EventSub events with null fields (no shared chat) reach the overlay, including Prime subs', () => {
+  const app = mainContext();
+  const renderer = rendererContext();
+  linkChat(app, renderer);
+  // Shaped like real Twitch payloads: fields that do not apply are null, not missing.
+  const common = {
+    broadcaster_user_id: '1', broadcaster_user_login: 'koy_cat', broadcaster_user_name: 'Koy_Cat',
+    chatter_user_id: '2', chatter_user_login: 'viewer', chatter_user_name: 'Viewer', chatter_is_anonymous: false,
+    color: '', badges: [], source_broadcaster_user_id: null, source_message_id: null, source_badges: null
+  };
+  const deliver = (id, type, event) => {
+    app.context.probe = { metadata: { message_id: id, subscription_type: type }, payload: { event } };
+    app.run('handleEventSubNotification(probe)');
+  };
+  deliver('d1', 'channel.chat.message', { ...common, message_id: 'c1', message_type: 'text', cheer: null, reply: null,
+    channel_points_custom_reward_id: null, message: { text: 'hallo', fragments: [{ type: 'text', text: 'hallo' }] } });
+  deliver('d2', 'channel.chat.notification', { ...common, message_id: 'n1', notice_type: 'sub',
+    system_message: 'Viewer subscribed with Prime.', message: { text: '', fragments: [] },
+    sub: { sub_tier: '1000', is_prime: true, duration_months: 1 }, resub: null, sub_gift: null, raid: null });
+  deliver('d3', 'channel.chat.notification', { ...common, message_id: 'n2', notice_type: 'resub',
+    system_message: 'Viewer subscribed with Prime. They have subscribed for 5 months!',
+    message: { text: 'love the stream', fragments: [{ type: 'text', text: 'love the stream' }] },
+    sub: null, resub: { cumulative_months: 5, duration_months: 1, sub_tier: '1000', is_prime: true, is_gift: false } });
+  const shown = renderer.elements.get('messages').children;
+  assert.equal(shown.length, 3);
+});

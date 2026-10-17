@@ -1578,7 +1578,10 @@ async function loadBadges(broadcasterId) {
   };
 }
 
-function decorateBadges(badges = []) {
+// Twitch sends null (not an empty list) for fields that do not apply, for example
+// source_badges outside of a shared chat. That must never stop an event.
+function decorateBadges(badges) {
+  if (!Array.isArray(badges)) return [];
   return badges.map(badge => ({ ...badge, url: badgeMap[badge.set_id]?.[badge.id] || null }));
 }
 
@@ -1880,7 +1883,15 @@ async function connectEventSub(url, continuation, broadcaster, generation) {
     } else if (messageType === 'session_keepalive') {
       return;
     } else if (messageType === 'notification') {
-      handleEventSubNotification(envelope);
+      // One event Twitch shapes differently must not vanish silently: it is reported
+      // in the diagnostics and the connection carries on with the next one.
+      try {
+        handleEventSubNotification(envelope);
+      } catch (error) {
+        connectionDiagnostics.lastError = `Twitch-Ereignis ${envelope.metadata?.subscription_type || 'unbekannt'} konnte nicht angezeigt werden: ${error?.message || error}`;
+        console.error(connectionDiagnostics.lastError);
+        emitDiagnostics();
+      }
     } else if (messageType === 'session_reconnect') {
       if (socket !== eventSocket) return;
       const reconnectUrl = envelope.payload?.session?.reconnect_url;
