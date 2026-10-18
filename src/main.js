@@ -135,6 +135,7 @@ let tiktokReconnectTimer = null;
 const tiktokConnecting = new WeakMap();
 let streamPollTimer = null;
 let tokenValidationTimer = null;
+let twitchSummaryTimer = null;
 let badgeMap = {};
 let refreshPromise = null;
 let tokenValidationInProgress = false;
@@ -878,6 +879,31 @@ function twitchErrorMessage(body) {
   }
 }
 
+function twitchLogPath() {
+  return path.join(app.getPath('userData'), 'twitch-events.log');
+}
+
+// Connections, stream start and end, failures and, every ten minutes, how many
+// messages and events arrived over which connection. Chat text is never written.
+function recordTwitchEvent(message) {
+  appendEventLog(twitchLogPath, message, 400);
+}
+
+// Counts since the last summary. Messages that only IRC delivered while EventSub was
+// connected point to a problem with the main connection.
+const twitchCounts = { eventSub: 0, irc: 0, notices: {} };
+
+function writeTwitchSummary() {
+  const notices = Object.entries(twitchCounts.notices).map(([type, count]) => `${type} ${count}`).join(', ');
+  const total = twitchCounts.eventSub + twitchCounts.irc;
+  if (!total && !notices && !accessSession?.user) return;
+  recordTwitchEvent(`Letzte 10 min: ${total} Nachrichten (EventSub ${twitchCounts.eventSub}, nur IRC ${twitchCounts.irc}), ` +
+    `Ereignisse: ${notices || 'keine'}; EventSub ${connectionDiagnostics.eventSub ? 'verbunden' : 'getrennt'}, IRC ${connectionDiagnostics.irc ? 'verbunden' : 'getrennt'}`);
+  twitchCounts.eventSub = 0;
+  twitchCounts.irc = 0;
+  twitchCounts.notices = {};
+}
+
 function captionSourceFilePath() {
   return path.join(app.getPath('userData'), 'Untertitel-Quelle.html');
 }
@@ -1011,6 +1037,10 @@ function updateTikTokViewerMetrics(data) {
 }
 
 function setConnectionPart(part, connected, error = null) {
+  if ((part === 'irc' || part === 'eventSub') && Boolean(connectionDiagnostics[part]) !== Boolean(connected)) {
+    const name = part === 'irc' ? 'IRC' : 'EventSub';
+    recordTwitchEvent(connected ? `${name} verbunden` : `${name} getrennt${error ? ` (${String(error).slice(0, 200)})` : ''}`);
+  }
   connectionDiagnostics[part] = connected;
   if (connected && (part === 'irc' || part === 'eventSub')) {
     twitchReconnectAttempt = 0;
@@ -1513,6 +1543,7 @@ async function syncTwitchStreamHistory(broadcaster, emitUnchanged = true, genera
   const existing = historyStore.twitch;
   if (!stream) {
     if (existing) {
+      recordTwitchEvent(`Twitch meldet den Stream von #${broadcaster.login} als offline`);
       historyStore.twitch = null;
       saveHistorySoon();
       send('chat:clear', { platform: 'twitch' });
@@ -1520,6 +1551,7 @@ async function syncTwitchStreamHistory(broadcaster, emitUnchanged = true, genera
     return null;
   }
   if (!existing || existing.broadcasterId !== broadcaster.id || existing.streamId !== stream.id) {
+    recordTwitchEvent(`Stream von #${broadcaster.login} live (Stream ${stream.id}, seit ${stream.started_at || 'unbekannt'})`);
     historyStore.twitch = {
       broadcasterId: broadcaster.id,
       broadcasterLogin: broadcaster.login,
@@ -1598,6 +1630,10 @@ function dispatchChatMessage(event, source, options = {}) {
   const key = event.message_id || fallback;
   if (seenMessageIds.has(key)) return;
   seenMessageIds.set(key, now);
+  if (event.platform === 'twitch') {
+    if (source === 'IRC') twitchCounts.irc += 1;
+    else twitchCounts.eventSub += 1;
+  }
   connectionDiagnostics.messagesReceived += 1;
   connectionDiagnostics.lastSource = source;
   emitDiagnostics();
@@ -1617,6 +1653,7 @@ function resetKeepalive(seconds, generation, broadcaster, socket) {
   clearTimeout(keepaliveTimer);
   keepaliveTimer = setTimeout(() => {
     if (generation !== twitchGeneration || socket !== eventSocket || quitting) return;
+    recordTwitchEvent('EventSub: keine Antwort von Twitch, Verbindung wird erneuert');
     setStatus('reconnecting', 'Keine Antwort von Twitch – Verbindung wird erneuert');
     connectEventSub(EVENTSUB_URL, false, broadcaster, generation).catch(error => {
       if (generation === twitchGeneration) reportConnectionError(error);
@@ -1694,6 +1731,7 @@ async function connectIrc(broadcaster, generation) {
         const event = toChatEvent(parsed, badgeMap);
         if (event) dispatchChatMessage(event, 'IRC');
       } else if (parsed.command === 'NOTICE' && /authentication failed|improperly formatted auth/i.test(parsed.trailing)) {
+        recordTwitchEvent(`IRC-Anmeldung abgelehnt: ${String(parsed.trailing).slice(0, 120)}`);
         setConnectionPart('irc', false, parsed.trailing);
         reportConnectionError(new Error('Twitch-IRC-Anmeldung fehlgeschlagen. Bitte einmal ab- und wieder anmelden.'));
       } else if (parsed.command === 'RECONNECT') {
@@ -1807,6 +1845,8 @@ function handleEventSubNotification(payload) {
     connectionDiagnostics.lastSource = 'Twitch-Ereignis';
     emitDiagnostics();
     recordHistory('twitch', 'notice', notice);
+    const noticeType = String(event.notice_type || 'unbekannt');
+    twitchCounts.notices[noticeType] = (twitchCounts.notices[noticeType] || 0) + 1;
     send('chat:notice', notice);
   } else if (type === 'channel.follow') {
     const notice = toTwitchFollowNotice(event);
@@ -1865,10 +1905,12 @@ async function connectEventSub(url, continuation, broadcaster, generation) {
           } catch (error) {
             connectionDiagnostics.follows = false;
             connectionDiagnostics.followError = followSubscriptionError(error, broadcaster);
+            recordTwitchEvent(`Follows nicht verfügbar: ${connectionDiagnostics.followError}`);
           }
           emitDiagnostics();
         } catch (error) {
           if (generation !== twitchGeneration || socket !== eventSocket) return;
+          recordTwitchEvent(`EventSub: Chat konnte nicht abonniert werden (${String(error?.message || error).slice(0, 200)})`);
           reportConnectionError(error);
           socket.close();
         }
@@ -1890,16 +1932,19 @@ async function connectEventSub(url, continuation, broadcaster, generation) {
       } catch (error) {
         connectionDiagnostics.lastError = `Twitch-Ereignis ${envelope.metadata?.subscription_type || 'unbekannt'} konnte nicht angezeigt werden: ${error?.message || error}`;
         console.error(connectionDiagnostics.lastError);
+        recordTwitchEvent(connectionDiagnostics.lastError);
         emitDiagnostics();
       }
     } else if (messageType === 'session_reconnect') {
       if (socket !== eventSocket) return;
       const reconnectUrl = envelope.payload?.session?.reconnect_url;
+      recordTwitchEvent('EventSub: Twitch verlangt einen Verbindungswechsel');
       if (reconnectUrl) connectEventSub(reconnectUrl, true, broadcaster, generation).catch(error => {
         if (generation === twitchGeneration) reportConnectionError(error);
       });
     } else if (messageType === 'revocation') {
       const revokedType = envelope?.metadata?.subscription_type || envelope?.payload?.subscription?.type;
+      recordTwitchEvent(`EventSub: Twitch hat ${revokedType || 'eine Berechtigung'} widerrufen`);
       if (revokedType === 'channel.follow') {
         connectionDiagnostics.follows = false;
         connectionDiagnostics.followError = 'Twitch hat die Follow-Berechtigung widerrufen. Bitte erneut anmelden.';
@@ -2444,6 +2489,11 @@ function registerIpc() {
     shell.showItemInFolder(file);
     return file;
   });
+  registerTrustedHandler('twitch:open-log', async () => {
+    if (!fs.existsSync(twitchLogPath())) throw new Error('Es gibt noch kein Twitch-Protokoll.');
+    const failure = await shell.openPath(twitchLogPath());
+    if (failure) throw new Error(failure);
+  });
   registerTrustedHandler('captions:open-log', async () => {
     if (!fs.existsSync(captionsLogPath())) throw new Error('Es gibt noch kein Untertitel-Protokoll.');
     const failure = await shell.openPath(captionsLogPath());
@@ -2588,6 +2638,9 @@ async function initializeApp() {
   if (authenticated) connectTwitchAndReport();
   else updateOverallStatus();
   if (settings.tiktokUsername) connectTikTok().catch(() => {});
+  recordTwitchEvent(`App gestartet, Kanal #${settings.channel || accessSession?.user?.login || 'nicht gesetzt'}, ${accessSession?.user ? `angemeldet als ${accessSession.user.login}` : 'nicht angemeldet'}`);
+  twitchSummaryTimer = setInterval(writeTwitchSummary, 10 * 60 * 1000);
+  twitchSummaryTimer.unref();
   tokenValidationTimer = setInterval(validateStoredToken, 60 * 60 * 1000);
   tokenValidationTimer.unref();
 }

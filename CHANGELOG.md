@@ -2,6 +2,10 @@
 
 Alle Versionen mit Download stehen unter [Releases](https://github.com/MrYourself/1/releases).
 
+## Version 0.2.6
+
+- **Twitch-Protokoll:** Neues `twitch-events.log` (Knopf „Twitch-Protokoll öffnen“ unter dem Abmelden-Knopf). Es hält Verbindungen, Trennungen, Stream-Start und -Ende sowie Fehler fest und schreibt alle zehn Minuten, wie viele Nachrichten und Ereignisse über welche Verbindung ankamen. Chattext wird nicht mitgeschrieben.
+
 ## Version 0.2.5
 
 - **Twitch-Abos, Resubs, verschenkte Abos und Raids werden wieder angezeigt**, auch Prime-Abos. Twitch schickt bei Ereignissen außerhalb eines Shared Chats ein leeres Feld für dessen Abzeichen mit; daran ist die Verarbeitung jedes Ereignisses der Hauptverbindung abgestürzt. Chatnachrichten kamen deshalb nur über die Ersatzverbindung an, Abos und Raids gar nicht.

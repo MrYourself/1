@@ -573,3 +573,13 @@ test('EventSub events with null fields (no shared chat) reach the overlay, inclu
   const shown = renderer.elements.get('messages').children;
   assert.equal(shown.length, 3);
 });
+
+test('Twitch messages are counted by the connection that delivered them first', () => {
+  const app = mainContext();
+  app.run("send = () => {};");
+  app.run("dispatchChatMessage({ message_id: 'a', platform: 'twitch', message: { text: 'eins' } }, 'EventSub');");
+  app.run("dispatchChatMessage({ message_id: 'a', platform: 'twitch', message: { text: 'eins' } }, 'IRC');");
+  app.run("dispatchChatMessage({ message_id: 'b', platform: 'twitch', message: { text: 'zwei' } }, 'IRC');");
+  assert.equal(app.run('twitchCounts.eventSub'), 1);
+  assert.equal(app.run('twitchCounts.irc'), 1, 'only messages EventSub missed count for IRC');
+});

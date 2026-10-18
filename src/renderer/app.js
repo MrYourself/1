@@ -13,7 +13,7 @@ const dom = Object.fromEntries([
   'developerConsoleButton', 'authButton', 'deviceCodeBox', 'deviceCode', 'authError',
   'authReason', 'diagnosticsLabel',
   'channelInput', 'tiktokUsernameInput', 'tiktokApiKeyInput', 'saveTikTokApiKeyButton',
-  'clearTikTokApiKeyButton', 'tiktokApiKeyStatus', 'eulerButton', 'tiktokLogButton', 'captionsLogButton', 'twitchFollowErrorText', 'tiktokErrorText',
+  'clearTikTokApiKeyButton', 'tiktokApiKeyStatus', 'eulerButton', 'tiktokLogButton', 'captionsLogButton', 'twitchLogButton', 'twitchFollowErrorText', 'tiktokErrorText',
   'fontSizeInput', 'fontSizeOutput', 'opacityInput', 'opacityOutput',
   'fadeInput', 'fadeOutput', 'maxMessagesInput', 'maxMessagesOutput', 'timestampsInput',
   'compactInput', 'botsInput', 'commandsInput', 'tiktokGiftsInput', 'tiktokSocialsInput', 'streamStatsInput', 'streamSafeInput',
@@ -793,6 +793,7 @@ dom.captionsSourceFileButton.addEventListener('click', async () => {
   sourceFileHelpTimer = window.setTimeout(() => { dom.captionsSourceFileHelp.textContent = SOURCE_FILE_HELP; }, 8000);
 });
 dom.captionsLogButton.addEventListener('click', () => window.overlay.openCaptionsLog().catch(error => addSystemMessage({ text: error.message, error: true })));
+dom.twitchLogButton.addEventListener('click', () => window.overlay.openTwitchLog().catch(error => addSystemMessage({ text: error.message, error: true })));
 dom.tiktokLogButton.addEventListener('click', () => window.overlay.openTikTokLog().catch(error => addSystemMessage({ text: error.message, error: true })));
 dom.eulerButton.addEventListener('click', () => window.overlay.openExternal('https://www.eulerstream.com/').catch(error => addSystemMessage({ text: error.message, error: true })));
 dom.saveTikTokApiKeyButton.addEventListener('click', async () => {
