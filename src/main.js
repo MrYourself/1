@@ -3,6 +3,7 @@
 const { app, BrowserWindow, ipcMain, shell, globalShortcut, Tray, Menu, nativeImage, safeStorage, screen, net, clipboard, Notification } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
 const { parseIrcLine, toChatEvent } = require('./twitch-irc');
@@ -23,7 +24,7 @@ const { createDeepgramStream } = require('./deepgram-client');
 const { buildCaption, interimText, parseDeepgramMessage } = require('./caption-transcript');
 const { createUpdater, releasesUrl } = require('./updater');
 const { createPortableUpdate } = require('./portable-update');
-const { createCaptionServer } = require('./caption-server');
+const { createCaptionServer, primaryLanAddress } = require('./caption-server');
 const { captionSourceHtml } = require('./caption-source-file');
 const {
   fitBoundsToWorkArea,
@@ -78,6 +79,8 @@ const DEFAULT_SETTINGS = Object.freeze({
   captionsTextColor: '#ffffff',
   captionsBox: true,
   captionsWindowVisible: false,
+  captionsLanShare: false,
+  captionsLanKey: '',
   updateBeta: false,
   updateInstall: 'start',
   bounds: { width: 520, height: 760 }
@@ -631,6 +634,8 @@ function startCaptionServer() {
   captionServer.start()
     .then(url => {
       if (url) recordCaptionEvent(`Browserquelle bereit: ${url}`);
+      // The key is never written to the log.
+      if (captionServer.lanUrl) recordCaptionEvent(`Im Heimnetz freigegeben: ${captionServer.lanUrl.split('?')[0]}`);
       connectionDiagnostics.captionsServerError = null;
       emitDiagnostics();
       send('settings:changed', publicSettings());
@@ -1001,7 +1006,8 @@ function publicSettings() {
     tiktokApiKeyConfigured: Boolean(tiktokApiKey),
     deeplApiKeyConfigured: Boolean(deeplApiKey),
     deepgramApiKeyConfigured: Boolean(deepgramApiKey),
-    captionsUrl: captionServer?.url || null
+    captionsUrl: captionServer?.lanUrl || captionServer?.url || null,
+    captionsLanKey: undefined
   };
 }
 
@@ -2441,6 +2447,7 @@ function registerIpc() {
     const oldShowTikTokSocials = settings.showTikTokSocials;
     const oldStreamSafe = settings.streamSafe;
     const oldCaptions = CAPTION_SETTING_KEYS.map(key => settings[key]);
+    const oldLanShare = Boolean(settings.captionsLanShare);
     const oldUpdateBeta = settings.updateBeta;
     const oldUpdateInstall = settings.updateInstall;
     settings = { ...settings, ...sanitizeSettingsUpdate(update, normalizeTikTokUsername) };
@@ -2450,6 +2457,19 @@ function registerIpc() {
     if (settings.updateBeta !== oldUpdateBeta) {
       updater?.setPrerelease(settings.updateBeta);
       updater?.check();
+    }
+    if (Boolean(settings.captionsLanShare) !== oldLanShare) {
+      // A key is created on first use; other computers need it in their address.
+      if (settings.captionsLanShare && !settings.captionsLanKey) {
+        settings.captionsLanKey = crypto.randomBytes(16).toString('hex');
+        saveSettings();
+      }
+      recordCaptionEvent(`Freigabe im Heimnetz ${settings.captionsLanShare ? 'eingeschaltet' : 'ausgeschaltet'}`);
+      // The server has to listen on different addresses, so it starts again.
+      if (captionServer) {
+        await captionServer.stop();
+        if (settings.captionsEnabled) startCaptionServer();
+      }
     }
     if (CAPTION_SETTING_KEYS.some((key, index) => settings[key] !== oldCaptions[index])) {
       if (settings.captionsEnabled !== oldCaptions[0]) {
@@ -2484,7 +2504,10 @@ function registerIpc() {
   });
   registerTrustedHandler('captions:reveal-source-file', () => {
     const file = captionSourceFilePath();
-    fs.writeFileSync(file, captionSourceHtml(), 'utf8');
+    const lanHost = settings.captionsLanShare && captionServer?.lanUrl ? primaryLanAddress() : null;
+    fs.writeFileSync(file, captionSourceHtml(lanHost
+      ? { port: captionServer.port, host: lanHost, key: settings.captionsLanKey }
+      : {}), 'utf8');
     clipboard.writeText(file);
     shell.showItemInFolder(file);
     return file;
@@ -2516,8 +2539,9 @@ function registerIpc() {
   registerTrustedHandler('captions:test', () => sendTestCaption());
   registerTrustedHandler('captions:copy-url', () => {
     if (!captionServer?.url) throw new Error('Die Browserquelle läuft erst, wenn die Untertitel eingeschaltet sind.');
-    clipboard.writeText(captionServer.url);
-    return captionServer.url;
+    const address = captionServer.lanUrl || captionServer.url;
+    clipboard.writeText(address);
+    return address;
   });
   registerTrustedHandler('captions:set-api-key', (_event, value) => {
     saveDeepgramApiKey(value);
@@ -2606,6 +2630,7 @@ async function initializeApp() {
   captionServer = createCaptionServer({
     root: path.join(__dirname, 'captions'),
     getState: captionsDisplayState,
+    getAccess: () => ({ lan: Boolean(settings.captionsLanShare), key: settings.captionsLanKey }),
     onError: error => reportStorageError('Untertitel-Browserquelle', error),
     onClients: count => {
       if (connectionDiagnostics.captionsClients === count) return;

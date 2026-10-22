@@ -190,11 +190,53 @@ test('sanitizes the new caption appearance settings', () => {
 
 test('the local source file embeds the caption page and retries the usual and the fallback ports', () => {
   const { captionSourceHtml } = require('../src/caption-source-file');
-  const html = captionSourceHtml();
-  assert.match(html, /var ports = \[17873,17874,17875,17876,17877,17878,17879,17880,17881,17882\];/);
-  assert.match(html, /'http:\/\/127\.0\.0\.1:' \+ port \+ '\/captions/);
-  assert.match(html, /captions-alive/);
-  assert.doesNotMatch(html, /https?:\/\/(?!127\.0\.0\.1)/, 'nothing but the local caption server is contacted');
+  const local = captionSourceHtml();
+  assert.match(local, /var ports = \[17873,17874,17875,17876,17877,17878,17879,17880,17881,17882\];/);
+  assert.match(local, /var host = "127\.0\.0\.1";/);
+  assert.match(local, /var key = "";/);
+  assert.match(local, /captions-alive/);
+  const remote = captionSourceHtml({ port: 17873, host: '192.168.178.23', key: 'a'.repeat(32) });
+  assert.match(remote, /var host = "192\.168\.178\.23";/);
+  assert.match(remote, /var key = "a{32}";/);
+});
+
+test('shared in the home network, other computers get the caption lines only with the key', async () => {
+  const { primaryLanAddress } = require('../src/caption-server');
+  const lan = primaryLanAddress();
+  if (!lan) return;
+  const key = 'b'.repeat(32);
+  const server = createCaptionServer({ root, port: 0, getState: () => ({}), getAccess: () => ({ lan: true, key }) });
+  await server.start();
+  try {
+    const port = server.port;
+    assert.equal(server.lanUrl, `http://${lan}:${port}/captions?key=${key}`);
+    const remote = (route, host = `${lan}:${port}`) => new Promise((resolve, reject) => {
+      // Connects over the network address, so the server sees a non-loopback client.
+      const request = http.get({ host: lan, port, path: route, headers: { Host: host } }, response => {
+        response.destroy();
+        resolve(response.statusCode);
+      });
+      request.on('error', reject);
+    });
+    assert.equal(await remote('/captions'), 200, 'the page itself is no secret');
+    assert.equal(await remote('/events'), 403, 'no caption lines without the key');
+    assert.equal(await remote(`/events?key=${'c'.repeat(32)}`), 403, 'nor with a wrong key');
+    assert.equal(await remote(`/events?key=${key}`), 200);
+    assert.equal(await remote(`/events?key=${key}`, `evil.example:${port}`), 403, 'foreign host names stay blocked');
+  } finally {
+    await server.stop();
+  }
+});
+
+test('without the home-network switch the server stays on this computer', async () => {
+  const server = createCaptionServer({ root, port: 0, getState: () => ({}), getAccess: () => ({ lan: false, key: 'd'.repeat(32) }) });
+  await server.start();
+  try {
+    assert.equal(server.lanUrl, null);
+    assert.equal(server.url, `http://127.0.0.1:${server.port}/captions`);
+  } finally {
+    await server.stop();
+  }
 });
 
 test('the caption page may be embedded and reports that it is alive', async () => {

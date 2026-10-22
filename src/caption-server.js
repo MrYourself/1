@@ -2,13 +2,37 @@
 
 const http = require('node:http');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const DEFAULT_PORT = 17873;
 const PORT_ATTEMPTS = 10;
 const MAX_CLIENTS = 20;
 const HEARTBEAT_MS = 15000;
 const HOST = '127.0.0.1';
+const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
+// The address other computers in the home network use, preferring private ranges.
+function primaryLanAddress(interfaces = os.networkInterfaces()) {
+  const addresses = Object.values(interfaces || {}).flat()
+    .filter(entry => entry && (entry.family === 'IPv4' || entry.family === 4) && !entry.internal)
+    .map(entry => entry.address);
+  const isPrivate = address => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address);
+  return addresses.find(isPrivate) || addresses[0] || null;
+}
+
+function lanAddresses(interfaces = os.networkInterfaces()) {
+  return Object.values(interfaces || {}).flat()
+    .filter(entry => entry && (entry.family === 'IPv4' || entry.family === 4) && !entry.internal)
+    .map(entry => entry.address);
+}
+
+function sameKey(given, expected) {
+  const left = Buffer.from(String(given || ''));
+  const right = Buffer.from(String(expected || ''));
+  return left.length === right.length && right.length > 0 && crypto.timingSafeEqual(left, right);
+}
 
 const FILES = {
   '/': ['web/index.html', 'text/html; charset=utf-8'],
@@ -26,9 +50,19 @@ const SECURITY_HEADERS = {
   'Content-Security-Policy': "default-src 'self'; base-uri 'none'; object-src 'none'"
 };
 
-// Serves the caption overlay for browser sources. It binds to the loopback address
-// only and exposes nothing but the display page and the caption lines themselves.
-function createCaptionServer({ root, getState, port = DEFAULT_PORT, onError = () => {}, onClients = () => {} }) {
+// Serves the caption overlay for browser sources and exposes nothing but the display
+// page and the caption lines themselves. Normally it binds to the loopback address.
+// Shared in the home network (OBS on another computer), it also answers on the
+// network, but other computers only get the caption lines with the access key.
+function createCaptionServer({
+  root,
+  getState,
+  port = DEFAULT_PORT,
+  getAccess = () => ({ lan: false, key: '' }),
+  getInterfaces = () => os.networkInterfaces(),
+  onError = () => {},
+  onClients = () => {}
+}) {
   const clients = new Set();
   let server = null;
   let heartbeat = null;
@@ -36,11 +70,19 @@ function createCaptionServer({ root, getState, port = DEFAULT_PORT, onError = ()
   let lastInterim = '';
   let starting = null;
   let wanted = false;
+  let access = { lan: false, key: '' };
 
   function allowedHost(request) {
-    // Rejects DNS-rebinding attempts: only loopback names may address this server.
+    // Rejects DNS-rebinding attempts: only this computer's own names and addresses
+    // may address the server.
     const host = String(request.headers.host || '').toLowerCase();
-    return host === `${HOST}:${activePort}` || host === `localhost:${activePort}`;
+    const names = [HOST, 'localhost'];
+    if (access.lan) names.push(...lanAddresses(getInterfaces()), os.hostname().toLowerCase());
+    return names.some(name => host === `${name}:${activePort}`);
+  }
+
+  function fromThisComputer(request) {
+    return LOOPBACK_ADDRESSES.has(String(request.socket?.remoteAddress || ''));
   }
 
   function write(client, event, data) {
@@ -75,8 +117,13 @@ function createCaptionServer({ root, getState, port = DEFAULT_PORT, onError = ()
       response.writeHead(405, { ...SECURITY_HEADERS, Allow: 'GET' }).end();
       return;
     }
-    const pathname = String(request.url || '/').split('?')[0];
+    const [pathname, query = ''] = String(request.url || '/').split('?');
     if (pathname === '/events') {
+      // The page and its scripts are no secret, the caption lines are.
+      if (!fromThisComputer(request) && !sameKey(new URLSearchParams(query).get('key'), access.key)) {
+        response.writeHead(403, SECURITY_HEADERS).end();
+        return;
+      }
       handleEvents(request, response);
       return;
     }
@@ -98,7 +145,7 @@ function createCaptionServer({ root, getState, port = DEFAULT_PORT, onError = ()
     return new Promise((resolve, reject) => {
       const instance = http.createServer(handle);
       instance.once('error', reject);
-      instance.listen(candidate, HOST, () => {
+      instance.listen(candidate, access.lan ? '0.0.0.0' : HOST, () => {
         instance.removeListener('error', reject);
         instance.on('error', onError);
         resolve(instance);
@@ -135,6 +182,9 @@ function createCaptionServer({ root, getState, port = DEFAULT_PORT, onError = ()
     if (server) return Promise.resolve(url());
     // Callers may ask again while the server is still starting; they share one attempt.
     if (!starting) {
+      access = { lan: false, key: '', ...(getAccess() || {}) };
+      // Without a key the network is never opened.
+      if (!access.key) access.lan = false;
       starting = open().then(instance => {
         if (!wanted) {
           instance.close();
@@ -178,13 +228,20 @@ function createCaptionServer({ root, getState, port = DEFAULT_PORT, onError = ()
     return activePort ? `http://${HOST}:${activePort}/captions` : null;
   }
 
+  function lanUrl() {
+    const address = access.lan && activePort ? primaryLanAddress(getInterfaces()) : null;
+    return address ? `http://${address}:${activePort}/captions?key=${access.key}` : null;
+  }
+
   return {
     start,
     stop,
     broadcast,
     get url() { return url(); },
+    get lanUrl() { return lanUrl(); },
+    get port() { return activePort; },
     get clientCount() { return clients.size; }
   };
 }
 
-module.exports = { DEFAULT_PORT, createCaptionServer };
+module.exports = { DEFAULT_PORT, createCaptionServer, primaryLanAddress };

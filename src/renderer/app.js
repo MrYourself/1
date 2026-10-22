@@ -26,7 +26,7 @@ const dom = Object.fromEntries([
   'captionsLevelBar', 'captionsGateMark', 'captionsTargetInput', 'captionsBackgroundInput', 'captionsFontSizeInput',
   'captionsFontSizeOutput', 'captionsOriginalInput', 'captionsOnlyTranslatedInput', 'captionsErrorText',
   'captionsUrlInput', 'copyCaptionsUrlButton', 'captionsUrlHelp', 'captionsTextColorInput', 'captionsBoxInput',
-  'captionsWindowInput', 'captionsBackgroundField', 'captionsSourceStatus', 'captionsTestButton', 'captionsSourceFileButton', 'captionsSourceFileHelp',
+  'captionsWindowInput', 'captionsBackgroundField', 'captionsSourceStatus', 'captionsTestButton', 'captionsSourceFileButton', 'captionsSourceFileHelp', 'captionsLanInput', 'captionsLanHelp',
   'updateStatusText', 'checkUpdateButton', 'installUpdateButton', 'downloadUpdateButton', 'updateBetaInput', 'updateInstallInput',
   'demoButton', 'clearButton', 'accountLabel', 'reconnectButton', 'logoutButton'
 ].map(id => [id, document.getElementById(id)]));
@@ -167,6 +167,8 @@ function fillSettings(next) {
   dom.captionsFontSizeInput.value = settings.captionsFontSize ?? 30;
   dom.captionsOriginalInput.checked = Boolean(settings.captionsShowOriginal);
   dom.captionsOnlyTranslatedInput.checked = settings.captionsOnlyTranslated !== false;
+  dom.captionsLanInput.checked = Boolean(settings.captionsLanShare);
+  dom.captionsLanHelp.classList.toggle('hidden', !settings.captionsLanShare);
   dom.updateBetaInput.checked = Boolean(settings.updateBeta);
   dom.updateInstallInput.value = settings.updateInstall || 'start';
   renderUpdateState(lastUpdateState);
@@ -736,6 +738,7 @@ function settingsFromForm() {
     captionsFontSize: Number(dom.captionsFontSizeInput.value),
     captionsShowOriginal: dom.captionsOriginalInput.checked,
     captionsOnlyTranslated: dom.captionsOnlyTranslatedInput.checked,
+    captionsLanShare: dom.captionsLanInput.checked,
     captionsTextColor: dom.captionsTextColorInput.value,
     captionsBox: dom.captionsBoxInput.checked,
     captionsWindowVisible: dom.captionsWindowInput.checked,
@@ -849,7 +852,7 @@ for (const input of [dom.timestampsInput, dom.compactInput, dom.botsInput, dom.c
 }
 for (const input of [dom.channelInput, dom.tiktokUsernameInput, dom.hiddenUsersInput, dom.blockedTermsInput,
   dom.translationInput, dom.translationTargetInput, dom.translationSkipInput,
-  dom.captionsInput, dom.captionsDeviceInput, dom.captionsTargetInput, dom.captionsBackgroundInput, dom.captionsOriginalInput, dom.captionsOnlyTranslatedInput,
+  dom.captionsInput, dom.captionsDeviceInput, dom.captionsTargetInput, dom.captionsBackgroundInput, dom.captionsOriginalInput, dom.captionsOnlyTranslatedInput, dom.captionsLanInput,
   dom.captionsBoxInput, dom.captionsWindowInput, dom.updateBetaInput, dom.updateInstallInput]) {
   input.addEventListener('change', () => queueSettingsSave(true));
 }

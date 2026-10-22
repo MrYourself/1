@@ -2,6 +2,10 @@
 
 Alle Versionen mit Download stehen unter [Releases](https://github.com/MrYourself/1/releases).
 
+## Version 0.2.7
+
+- **Untertitel für OBS auf einem anderen Rechner:** Neuer Schalter „Im Heimnetz freigeben“ unter Stream-Untertitel. Die Adresse der Browserquelle zeigt dann auf diesen Rechner im Heimnetz und enthält einen geheimen Schlüssel; ohne ihn bekommt kein anderes Gerät die Untertitel. Gedacht für Aufbauten mit Capture Card, bei denen das Mikrofon an einem anderen Gerät hängt als OBS. Die lokale Datei für OBS lässt sich dafür auf den OBS-Rechner kopieren.
+
 ## Version 0.2.6
 
 - **Twitch-Protokoll:** Neues `twitch-events.log` (Knopf „Twitch-Protokoll öffnen“ unter dem Abmelden-Knopf). Es hält Verbindungen, Trennungen, Stream-Start und -Ende sowie Fehler fest und schreibt alle zehn Minuten, wie viele Nachrichten und Ereignisse über welche Verbindung ankamen. Chattext wird nicht mitgeschrieben.

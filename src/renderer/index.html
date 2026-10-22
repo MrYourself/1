@@ -196,10 +196,12 @@
             <input id="captionsUrlInput" type="text" readonly spellcheck="false" placeholder="Wird angezeigt, sobald die Untertitel eingeschaltet sind" aria-label="Adresse der Browserquelle">
             <button id="copyCaptionsUrlButton" type="button" class="secondary-button">Kopieren</button>
           </div>
+          <label class="toggle"><input id="captionsLanInput" type="checkbox"><span></span>Im Heimnetz freigeben (OBS läuft auf einem anderen Rechner)</label>
           <small id="captionsUrlHelp" class="field-help">In OBS als Quelle „Browser“, in TikTok LIVE Studio als Quelle „Link“ einfügen. Breite und Höhe dort frei wählen, der Text bricht passend um.</small>
           <small id="captionsSourceStatus" class="field-help source-status">Die Browserquelle läuft, sobald die Untertitel eingeschaltet sind.</small>
           <button id="captionsTestButton" type="button" class="link-button field-link">Testzeile senden</button>
           <button id="captionsSourceFileButton" type="button" class="link-button field-link">Lokale Datei für OBS anzeigen</button>
+          <small id="captionsLanHelp" class="field-help hidden">Die Adresse oben gilt jetzt für den anderen Rechner und enthält einen geheimen Schlüssel. Windows fragt beim ersten Mal nach der Firewall: „Private Netzwerke“ erlauben. Die lokale Datei für OBS auf den anderen Rechner kopieren.</small>
           <small id="captionsSourceFileHelp" class="field-help">Empfohlen für OBS: In der Browserquelle „Lokale Datei“ anhaken und diese Datei wählen. Dann erscheinen die Untertitel auch, wenn OBS vor dem Overlay gestartet oder das Overlay neu gestartet wurde.</small>
         </div>
         <div class="field">

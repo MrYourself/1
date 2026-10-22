@@ -17,7 +17,8 @@ function parse(event) {
 // not do so reliably after the app was restarted. Every failure therefore closes the
 // stream and opens a new one until the app answers again.
 function connect() {
-  const events = new EventSource('events');
+  // The access key (OBS on another computer) is passed on from the page address.
+  const events = new EventSource(`events${location.search}`);
   events.addEventListener('state', event => display.applyState(parse(event)));
   events.addEventListener('interim', event => display.showInterim(parse(event) || {}));
   events.addEventListener('line', event => display.showLine(parse(event)));

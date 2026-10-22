@@ -69,10 +69,13 @@ function sanitizeSettingsUpdate(update, normalizeTikTokUsername = value => Strin
   if (Array.isArray(update.translationSkipLanguages)) {
     result.translationSkipLanguages = normalizeLanguageList(update.translationSkipLanguages);
   }
-  for (const key of ['captionsEnabled', 'captionsShowOriginal', 'captionsOnlyTranslated', 'captionsBox', 'captionsWindowVisible', 'updateBeta']) {
+  for (const key of ['captionsEnabled', 'captionsShowOriginal', 'captionsOnlyTranslated', 'captionsLanShare', 'captionsBox', 'captionsWindowVisible', 'updateBeta']) {
     if (typeof update[key] === 'boolean') result[key] = update[key];
   }
   if (INSTALL_MODES.includes(update.updateInstall)) result.updateInstall = update.updateInstall;
+  if (typeof update.captionsLanKey === 'string' && /^[0-9a-f]{32}$/.test(update.captionsLanKey)) {
+    result.captionsLanKey = update.captionsLanKey;
+  }
   if (typeof update.captionsTarget === 'string') result.captionsTarget = normalizeTargetLanguage(update.captionsTarget, 'EN-US');
   if (typeof update.captionsTextColor === 'string' && /^#[0-9a-f]{6}$/i.test(update.captionsTextColor)) {
     result.captionsTextColor = update.captionsTextColor.toLowerCase();

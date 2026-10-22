@@ -8,7 +8,8 @@ const PORT_ATTEMPTS = 10;
 // at the caption server stays empty for good when OBS was started before the app,
 // because OBS never retries a page that failed to load. This file always loads and
 // keeps trying to embed the live caption page until it answers.
-function captionSourceHtml(port = DEFAULT_PORT) {
+// For OBS on another computer, host and key point at the computer running the app.
+function captionSourceHtml({ port = DEFAULT_PORT, host = '127.0.0.1', key = '' } = {}) {
   const ports = [];
   for (let attempt = 0; attempt < PORT_ATTEMPTS; attempt += 1) ports.push(port + attempt);
   return `<!doctype html>
@@ -27,6 +28,8 @@ function captionSourceHtml(port = DEFAULT_PORT) {
   // Created by Twitch Chat Overlay. The caption page reports once per second that it
   // is loaded; without that sign of life the frame is loaded again.
   var ports = ${JSON.stringify(ports)};
+  var host = ${JSON.stringify(host)};
+  var key = ${JSON.stringify(key)};
   var frame = document.getElementById('captions');
   var attempt = 0;
   var aliveAt = 0;
@@ -34,7 +37,7 @@ function captionSourceHtml(port = DEFAULT_PORT) {
     // The usual port is tried every other time, the fallback ports in between.
     var port = attempt % 2 === 0 ? ports[0] : ports[1 + ((attempt - 1) / 2) % (ports.length - 1)];
     attempt += 1;
-    frame.src = 'http://127.0.0.1:' + port + '/captions?t=' + Date.now();
+    frame.src = 'http://' + host + ':' + port + '/captions?' + (key ? 'key=' + key + '&' : '') + 't=' + Date.now();
   }
   window.addEventListener('message', function (event) {
     if (event.source === frame.contentWindow && event.data === 'captions-alive') aliveAt = Date.now();
