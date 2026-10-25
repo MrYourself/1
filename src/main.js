@@ -26,6 +26,7 @@ const { createUpdater, releasesUrl } = require('./updater');
 const { createPortableUpdate } = require('./portable-update');
 const { createCaptionServer, primaryLanAddress } = require('./caption-server');
 const { captionSourceHtml } = require('./caption-source-file');
+const { refreshCaptionSources } = require('./obs-client');
 const {
   fitBoundsToWorkArea,
   isAllowedExternalUrl,
@@ -80,6 +81,9 @@ const DEFAULT_SETTINGS = Object.freeze({
   captionsBox: true,
   captionsWindowVisible: false,
   captionsLanShare: false,
+  obsRefreshEnabled: false,
+  obsHost: '127.0.0.1',
+  obsPort: 4455,
   captionsLanKey: '',
   updateBeta: false,
   updateInstall: 'start',
@@ -88,6 +92,8 @@ const DEFAULT_SETTINGS = Object.freeze({
 const RECENT_MESSAGE_LIMIT = 500;
 const HISTORY_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const HISTORY_SAVE_INTERVAL_MS = 5000;
+const OBS_REFRESH_DELAY_MS = 8000;
+const OBS_REFRESH_INTERVAL_MS = 30000;
 const TIKTOK_BACKLOG_AGE_MS = 60 * 1000;
 // Value of the control message TikTok sends when moderation takes a stream down.
 const TIKTOK_STREAM_SUSPENDED = 4;
@@ -122,6 +128,9 @@ let captionQueue = Promise.resolve();
 let captionSequence = 0;
 let captionDevices = [];
 let captionServer = null;
+let obsPassword = '';
+let obsRefreshTimer = null;
+let obsRefreshedAt = 0;
 let captionsLevelSeen = false;
 let updater = null;
 let updateReleasesUrl = null;
@@ -197,6 +206,10 @@ function historyPath() {
 
 function tiktokCredentialsPath() {
   return path.join(app.getPath('userData'), 'tiktok-credentials.json');
+}
+
+function obsCredentialsPath() {
+  return path.join(app.getPath('userData'), 'obs-credentials.json');
 }
 
 function deeplCredentialsPath() {
@@ -400,6 +413,68 @@ function loadDeepLApiKey() {
   } catch {
     return '';
   }
+}
+
+function loadObsPassword() {
+  const stored = readJson(obsCredentialsPath(), null);
+  if (!stored?.password) return '';
+  try {
+    return decrypt(stored.password);
+  } catch {
+    return '';
+  }
+}
+
+function saveObsPassword(value) {
+  const next = String(value || '').slice(0, 256);
+  if (!next) {
+    try { fs.unlinkSync(obsCredentialsPath()); } catch {}
+  } else {
+    writeJson(obsCredentialsPath(), { password: encrypt(next) });
+  }
+  obsPassword = next;
+}
+
+// Asks OBS to reload the caption browser sources. Used when no source is connected:
+// a browser source whose browser died with a crashing game, or one that OBS loaded
+// before the app was running, only comes back by being reloaded.
+async function refreshObsCaptionSources(reason) {
+  obsRefreshedAt = Date.now();
+  try {
+    const names = await refreshCaptionSources({
+      WebSocketImpl: WebSocket,
+      host: settings.obsHost,
+      port: settings.obsPort,
+      password: obsPassword
+    });
+    connectionDiagnostics.obsError = names.length ? null : 'In OBS wurde keine Untertitel-Quelle gefunden.';
+    recordCaptionEvent(names.length
+      ? `OBS-Quelle neu geladen (${reason}): ${names.join(', ')}`
+      : `OBS erreicht, aber keine Untertitel-Quelle gefunden (${reason})`);
+    emitDiagnostics();
+    return names;
+  } catch (error) {
+    connectionDiagnostics.obsError = String(error?.message || error);
+    recordCaptionEvent(`OBS-Quelle konnte nicht neu geladen werden (${reason}): ${connectionDiagnostics.obsError}`);
+    emitDiagnostics();
+    throw error;
+  }
+}
+
+// After some seconds without a connected source, OBS is asked once; at most every
+// half minute, so a source that keeps failing does not reload in a loop.
+function scheduleObsRefresh(reason) {
+  clearTimeout(obsRefreshTimer);
+  obsRefreshTimer = null;
+  if (!settings.obsRefreshEnabled || !settings.captionsEnabled || quitting) return;
+  const wait = Math.max(OBS_REFRESH_DELAY_MS, obsRefreshedAt + OBS_REFRESH_INTERVAL_MS - Date.now());
+  obsRefreshTimer = setTimeout(() => {
+    obsRefreshTimer = null;
+    if (!settings.obsRefreshEnabled || !settings.captionsEnabled || quitting) return;
+    if ((captionServer?.clientCount || 0) > 0) return;
+    refreshObsCaptionSources(reason).catch(() => {});
+  }, wait);
+  obsRefreshTimer.unref?.();
 }
 
 function saveDeepLApiKey(value) {
@@ -634,6 +709,7 @@ function startCaptionServer() {
   captionServer.start()
     .then(url => {
       if (url) recordCaptionEvent(`Browserquelle bereit: ${url}`);
+      if (url) scheduleObsRefresh('Start');
       // The key is never written to the log.
       if (captionServer.lanUrl) recordCaptionEvent(`Im Heimnetz freigegeben: ${captionServer.lanUrl.split('?')[0]}`);
       connectionDiagnostics.captionsServerError = null;
@@ -1005,6 +1081,7 @@ function publicSettings() {
     ...settings,
     tiktokApiKeyConfigured: Boolean(tiktokApiKey),
     deeplApiKeyConfigured: Boolean(deeplApiKey),
+    obsPasswordConfigured: Boolean(obsPassword),
     deepgramApiKeyConfigured: Boolean(deepgramApiKey),
     captionsUrl: captionServer?.lanUrl || captionServer?.url || null,
     captionsLanKey: undefined
@@ -2537,6 +2614,13 @@ function registerIpc() {
     return next;
   });
   registerTrustedHandler('captions:test', () => sendTestCaption());
+  registerTrustedHandler('obs:set-password', (_event, value) => {
+    saveObsPassword(value);
+    const next = publicSettings();
+    send('settings:changed', next);
+    return next;
+  });
+  registerTrustedHandler('obs:refresh', () => refreshObsCaptionSources('von Hand'));
   registerTrustedHandler('captions:copy-url', () => {
     if (!captionServer?.url) throw new Error('Die Browserquelle läuft erst, wenn die Untertitel eingeschaltet sind.');
     const address = captionServer.lanUrl || captionServer.url;
@@ -2620,6 +2704,7 @@ async function initializeApp() {
   settings = loadSettings();
   tiktokApiKey = loadTikTokApiKey();
   deeplApiKey = loadDeepLApiKey();
+  obsPassword = loadObsPassword();
   translator = createDeepLTranslator({
     fetchImpl: (url, options) => net.fetch(url, options),
     getApiKey: () => deeplApiKey,
@@ -2635,6 +2720,11 @@ async function initializeApp() {
     onClients: count => {
       if (connectionDiagnostics.captionsClients === count) return;
       recordCaptionEvent(`Verbundene Browserquellen: ${count}`);
+      if (count === 0) scheduleObsRefresh('Quelle getrennt');
+      else {
+        clearTimeout(obsRefreshTimer);
+        obsRefreshTimer = null;
+      }
       connectionDiagnostics.captionsClients = count;
       emitDiagnostics();
     }

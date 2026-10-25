@@ -26,7 +26,7 @@ const dom = Object.fromEntries([
   'captionsLevelBar', 'captionsGateMark', 'captionsTargetInput', 'captionsBackgroundInput', 'captionsFontSizeInput',
   'captionsFontSizeOutput', 'captionsOriginalInput', 'captionsOnlyTranslatedInput', 'captionsErrorText',
   'captionsUrlInput', 'copyCaptionsUrlButton', 'captionsUrlHelp', 'captionsTextColorInput', 'captionsBoxInput',
-  'captionsWindowInput', 'captionsBackgroundField', 'captionsSourceStatus', 'captionsTestButton', 'captionsSourceFileButton', 'captionsSourceFileHelp', 'captionsLanInput', 'captionsLanHelp',
+  'captionsWindowInput', 'captionsBackgroundField', 'captionsSourceStatus', 'captionsTestButton', 'captionsSourceFileButton', 'captionsSourceFileHelp', 'captionsLanInput', 'captionsLanHelp', 'obsRefreshInput', 'obsFields', 'obsHostInput', 'obsPortInput', 'obsPasswordInput', 'saveObsPasswordButton', 'obsRefreshButton', 'obsStatus',
   'updateStatusText', 'checkUpdateButton', 'installUpdateButton', 'downloadUpdateButton', 'updateBetaInput', 'updateInstallInput',
   'demoButton', 'clearButton', 'accountLabel', 'reconnectButton', 'logoutButton'
 ].map(id => [id, document.getElementById(id)]));
@@ -168,6 +168,11 @@ function fillSettings(next) {
   dom.captionsOriginalInput.checked = Boolean(settings.captionsShowOriginal);
   dom.captionsOnlyTranslatedInput.checked = settings.captionsOnlyTranslated !== false;
   dom.captionsLanInput.checked = Boolean(settings.captionsLanShare);
+  dom.obsRefreshInput.checked = Boolean(settings.obsRefreshEnabled);
+  dom.obsFields.classList.toggle('hidden', !settings.obsRefreshEnabled);
+  dom.obsHostInput.value = settings.obsHost || '127.0.0.1';
+  dom.obsPortInput.value = settings.obsPort || 4455;
+  dom.obsStatus.textContent = settings.obsPasswordConfigured ? 'Passwort gespeichert.' : 'Kein Passwort gespeichert (nur nötig, wenn OBS eines verlangt).';
   dom.captionsLanHelp.classList.toggle('hidden', !settings.captionsLanShare);
   dom.updateBetaInput.checked = Boolean(settings.updateBeta);
   dom.updateInstallInput.value = settings.updateInstall || 'start';
@@ -739,6 +744,9 @@ function settingsFromForm() {
     captionsShowOriginal: dom.captionsOriginalInput.checked,
     captionsOnlyTranslated: dom.captionsOnlyTranslatedInput.checked,
     captionsLanShare: dom.captionsLanInput.checked,
+    obsRefreshEnabled: dom.obsRefreshInput.checked,
+    obsHost: dom.obsHostInput.value,
+    obsPort: Number(dom.obsPortInput.value),
     captionsTextColor: dom.captionsTextColorInput.value,
     captionsBox: dom.captionsBoxInput.checked,
     captionsWindowVisible: dom.captionsWindowInput.checked,
@@ -794,6 +802,28 @@ dom.captionsSourceFileButton.addEventListener('click', async () => {
     dom.captionsSourceFileHelp.textContent = error.message;
   }
   sourceFileHelpTimer = window.setTimeout(() => { dom.captionsSourceFileHelp.textContent = SOURCE_FILE_HELP; }, 8000);
+});
+dom.saveObsPasswordButton.addEventListener('click', async () => {
+  try {
+    applySettings(await window.overlay.setObsPassword(dom.obsPasswordInput.value));
+    dom.obsPasswordInput.value = '';
+  } catch (error) {
+    dom.obsStatus.textContent = `Speichern fehlgeschlagen: ${error.message}`;
+  }
+});
+dom.obsRefreshButton.addEventListener('click', async () => {
+  dom.obsRefreshButton.disabled = true;
+  dom.obsStatus.textContent = 'Verbinde mit OBS …';
+  try {
+    const names = await window.overlay.refreshObs();
+    dom.obsStatus.textContent = names.length
+      ? `Neu geladen: ${names.join(', ')}`
+      : 'OBS erreicht, aber keine Untertitel-Quelle gefunden.';
+  } catch (error) {
+    dom.obsStatus.textContent = error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
+  } finally {
+    dom.obsRefreshButton.disabled = false;
+  }
 });
 dom.captionsLogButton.addEventListener('click', () => window.overlay.openCaptionsLog().catch(error => addSystemMessage({ text: error.message, error: true })));
 dom.twitchLogButton.addEventListener('click', () => window.overlay.openTwitchLog().catch(error => addSystemMessage({ text: error.message, error: true })));
@@ -852,7 +882,7 @@ for (const input of [dom.timestampsInput, dom.compactInput, dom.botsInput, dom.c
 }
 for (const input of [dom.channelInput, dom.tiktokUsernameInput, dom.hiddenUsersInput, dom.blockedTermsInput,
   dom.translationInput, dom.translationTargetInput, dom.translationSkipInput,
-  dom.captionsInput, dom.captionsDeviceInput, dom.captionsTargetInput, dom.captionsBackgroundInput, dom.captionsOriginalInput, dom.captionsOnlyTranslatedInput, dom.captionsLanInput,
+  dom.captionsInput, dom.captionsDeviceInput, dom.captionsTargetInput, dom.captionsBackgroundInput, dom.captionsOriginalInput, dom.captionsOnlyTranslatedInput, dom.captionsLanInput, dom.obsRefreshInput, dom.obsHostInput, dom.obsPortInput,
   dom.captionsBoxInput, dom.captionsWindowInput, dom.updateBetaInput, dom.updateInstallInput]) {
   input.addEventListener('change', () => queueSettingsSave(true));
 }

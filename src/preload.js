@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('overlay', {
   copyCaptionsUrl: () => ipcRenderer.invoke('captions:copy-url'),
   revealCaptionsSourceFile: () => ipcRenderer.invoke('captions:reveal-source-file'),
   testCaptions: () => ipcRenderer.invoke('captions:test'),
+  setObsPassword: password => ipcRenderer.invoke('obs:set-password', password),
+  refreshObs: () => ipcRenderer.invoke('obs:refresh'),
   onCaptionDevices: listen('captions:devices'),
   onCaptionLevel: listen('captions:level'),
   startAuth: clientId => ipcRenderer.invoke('auth:start', clientId),

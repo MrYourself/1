@@ -4,6 +4,7 @@ Alle Versionen mit Download stehen unter [Releases](https://github.com/MrYoursel
 
 ## Version 0.2.7
 
+- **OBS-Quelle lädt sich selbst neu:** Neuer Schalter „Quelle in OBS automatisch neu laden“ unter Stream-Untertitel. Über den WebSocket-Server von OBS lädt das Overlay die Untertitel-Quelle neu, sobald acht Sekunden lang keine Quelle verbunden ist, etwa nach einem Spielabsturz oder wenn OBS vor dem Overlay gestartet wurde. Höchstens alle 30 Sekunden; das Passwort wird verschlüsselt gespeichert.
 - **Untertitel für OBS auf einem anderen Rechner:** Neuer Schalter „Im Heimnetz freigeben“ unter Stream-Untertitel. Die Adresse der Browserquelle zeigt dann auf diesen Rechner im Heimnetz und enthält einen geheimen Schlüssel; ohne ihn bekommt kein anderes Gerät die Untertitel. Gedacht für Aufbauten mit Capture Card, bei denen das Mikrofon an einem anderen Gerät hängt als OBS. Die lokale Datei für OBS lässt sich dafür auf den OBS-Rechner kopieren.
 
 ## Version 0.2.6

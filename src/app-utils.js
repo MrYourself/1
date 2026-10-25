@@ -69,7 +69,7 @@ function sanitizeSettingsUpdate(update, normalizeTikTokUsername = value => Strin
   if (Array.isArray(update.translationSkipLanguages)) {
     result.translationSkipLanguages = normalizeLanguageList(update.translationSkipLanguages);
   }
-  for (const key of ['captionsEnabled', 'captionsShowOriginal', 'captionsOnlyTranslated', 'captionsLanShare', 'captionsBox', 'captionsWindowVisible', 'updateBeta']) {
+  for (const key of ['captionsEnabled', 'captionsShowOriginal', 'captionsOnlyTranslated', 'captionsLanShare', 'obsRefreshEnabled', 'captionsBox', 'captionsWindowVisible', 'updateBeta']) {
     if (typeof update[key] === 'boolean') result[key] = update[key];
   }
   if (INSTALL_MODES.includes(update.updateInstall)) result.updateInstall = update.updateInstall;
@@ -83,7 +83,11 @@ function sanitizeSettingsUpdate(update, normalizeTikTokUsername = value => Strin
   if (update.captionsBackground === 'dark' || update.captionsBackground === 'green') {
     result.captionsBackground = update.captionsBackground;
   }
-  for (const [key, minimum, maximum] of [['captionsFontSize', 16, 72], ['captionsGate', 0, 100]]) {
+  if (typeof update.obsHost === 'string') {
+    const host = update.obsHost.trim();
+    if (/^[\w.-]{1,253}$/.test(host)) result.obsHost = host;
+  }
+  for (const [key, minimum, maximum] of [['captionsFontSize', 16, 72], ['captionsGate', 0, 100], ['obsPort', 1, 65535]]) {
     const value = boundedNumber(update[key], minimum, maximum);
     if (value !== null) result[key] = value;
   }

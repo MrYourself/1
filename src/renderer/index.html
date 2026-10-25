@@ -201,6 +201,20 @@
           <small id="captionsSourceStatus" class="field-help source-status">Die Browserquelle läuft, sobald die Untertitel eingeschaltet sind.</small>
           <button id="captionsTestButton" type="button" class="link-button field-link">Testzeile senden</button>
           <button id="captionsSourceFileButton" type="button" class="link-button field-link">Lokale Datei für OBS anzeigen</button>
+          <label class="toggle"><input id="obsRefreshInput" type="checkbox"><span></span>Quelle in OBS automatisch neu laden</label>
+          <div id="obsFields" class="obs-fields hidden">
+            <small class="field-help">In OBS unter Werkzeuge → WebSocket-Servereinstellungen den Server aktivieren und das Passwort hier eintragen. Verliert OBS die Untertitel (Spielabsturz, Neustart), lädt das Overlay die Quelle nach wenigen Sekunden selbst neu.</small>
+            <div class="secret-row">
+              <input id="obsHostInput" type="text" spellcheck="false" placeholder="127.0.0.1" aria-label="Adresse des OBS-Rechners">
+              <input id="obsPortInput" type="number" min="1" max="65535" placeholder="4455" aria-label="OBS-WebSocket-Port">
+            </div>
+            <div class="secret-row">
+              <input id="obsPasswordInput" type="password" autocomplete="off" spellcheck="false" placeholder="OBS-WebSocket-Passwort" aria-label="OBS-WebSocket-Passwort">
+              <button id="saveObsPasswordButton" type="button" class="secondary-button">Speichern</button>
+            </div>
+            <button id="obsRefreshButton" type="button" class="link-button field-link">Jetzt in OBS neu laden</button>
+            <small id="obsStatus" class="field-help">Kein Passwort gespeichert.</small>
+          </div>
           <small id="captionsLanHelp" class="field-help hidden">Die Adresse oben gilt jetzt für den anderen Rechner und enthält einen geheimen Schlüssel. Windows fragt beim ersten Mal nach der Firewall: „Private Netzwerke“ erlauben. Die lokale Datei für OBS auf den anderen Rechner kopieren.</small>
           <small id="captionsSourceFileHelp" class="field-help">Empfohlen für OBS: In der Browserquelle „Lokale Datei“ anhaken und diese Datei wählen. Dann erscheinen die Untertitel auch, wenn OBS vor dem Overlay gestartet oder das Overlay neu gestartet wurde.</small>
         </div>
