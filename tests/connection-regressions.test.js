@@ -113,7 +113,7 @@ function configureTwitch(app) {
   `);
 }
 
-test('TikTok connect delivers recent initial messages, skips old ones and still filters live bursts', async () => {
+test('TikTok connect delivers the comments from before the connection and still filters live bursts', async () => {
   const nowSeconds = Math.floor(Date.now() / 1000);
   const renderer = rendererContext();
   const app = mainContext({ electron: { net: { fetch: async () => ({
@@ -152,8 +152,8 @@ test('TikTok connect delivers recent initial messages, skips old ones and still 
     tiktokModulePromise = Promise.resolve(connector);
   `);
   await app.run('connectTikTok()');
-  assert.equal(renderer.elements.get('messages').children.length, 10, 'comments from 20 minutes ago are not shown');
-  assert.equal(app.run('historyStore.tiktok.entries.length'), 10);
+  assert.equal(renderer.elements.get('messages').children.length, 16, 'comments sent before the overlay opened are shown too');
+  assert.equal(app.run('historyStore.tiktok.entries.length'), 16);
   for (let i = 0; i < 10; i++) {
     connection.emit('chat', {
       user: { id: '1', uniqueId: 'viewer' }, content: `Live ${i}`,
@@ -161,7 +161,7 @@ test('TikTok connect delivers recent initial messages, skips old ones and still 
     });
   }
   // Live messages use arrival time even if their supplied timestamps are spaced.
-  assert.equal(renderer.elements.get('messages').children.length, 15);
+  assert.equal(renderer.elements.get('messages').children.length, 21);
 });
 
 test('history rebuild does not bring back messages that already faded out', () => {
@@ -204,7 +204,7 @@ test('history of a stream that was never seen ending expires on startup', () => 
   assert.equal(app.run('loadHistoryStore().tiktok.entries.length'), 1);
 });
 
-test('TikTok connections do not replay comments from before the connection', () => {
+test('TikTok connections ask for the comments from before the connection', () => {
   let options;
   class TikTokConnection extends EventEmitter {
     constructor(_username, connectionOptions) { super(); options = connectionOptions; }
@@ -220,7 +220,7 @@ test('TikTok connections do not replay comments from before the connection', () 
     ControlEvent: { ERROR: 'error', DISCONNECTED: 'disconnected' }
   };
   app.run("settings.tiktokUsername = 'streamer'; tiktokModulePromise = Promise.resolve(connector); send = () => {};");
-  return app.run('connectTikTok()').then(() => assert.equal(options.processInitialData, false));
+  return app.run('connectTikTok()').then(() => assert.equal(options.processInitialData, true));
 });
 
 test('a TikTok connection abandoned while connecting is closed once it is up', async () => {
