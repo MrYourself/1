@@ -61,13 +61,17 @@ Die Untertitel sind ein Übersetzer für die Zuschauer: Wird Deutsch gesprochen,
    - **TikTok LIVE Studio:** Quelle **Link** hinzufügen und die Adresse einfügen.
 5. Mit **Testzeile senden** prüfen, ob der Untertitel im Stream ankommt.
 
+**OBS auf einem anderen Rechner** (z. B. Capture Card, Mikrofon an der Ally): Auf dem Gerät mit dem Mikrofon **Im Heimnetz freigeben** einschalten. Die Adresse der Browserquelle enthält dann die Netzwerkadresse und einen geheimen Schlüssel; ohne ihn bekommt kein anderes Gerät die Untertitel. Die lokale Datei für OBS auf den OBS-Rechner kopieren; sie findet das Gerät auch über seinen Namen, falls der Router ihm eine neue Adresse gibt. Windows fragt beim ersten Mal nach der Firewall: „Private Netzwerke“ erlauben.
+
+**Quelle in OBS automatisch neu laden:** In OBS unter **Werkzeuge → WebSocket-Servereinstellungen** den Server aktivieren und im Overlay das Passwort eintragen (bei OBS auf einem anderen Rechner auch dessen Adresse). Ist acht Sekunden lang keine Quelle verbunden, etwa nach einem Spielabsturz, lädt das Overlay die Untertitel-Quelle in OBS selbst neu, höchstens alle 30 Sekunden.
+
 Weitere Optionen:
 
 - **Nur Übersetzungen anzeigen** (Standard: an). Ausgeschaltet wird alles Gesprochene eingeblendet, auch in der Untertitel-Sprache.
 - **Textfarbe**, **Schriftgröße** und **Dunkler Kasten hinter dem Text**.
 - **Zusätzliches Aufnahmefenster** für Programme ohne Browserquelle; dort in der Quelle „Mauszeiger aufnehmen“ ausschalten.
 
-Kosten: Übertragen wird nur, während gesprochen wird. Grob 0,50 € pro Stunde reiner Sprechzeit bei Deepgram; an DeepL gehen nur die zu übersetzenden Sätze. Die Browserquelle ist nur auf dem eigenen Rechner erreichbar.
+Kosten: Übertragen wird nur, während gesprochen wird. Grob 0,50 € pro Stunde reiner Sprechzeit bei Deepgram; an DeepL gehen nur die zu übersetzenden Sätze. Die Browserquelle ist nur auf dem eigenen Rechner erreichbar, außer bei eingeschalteter Freigabe im Heimnetz.
 
 ## Bedienung
 

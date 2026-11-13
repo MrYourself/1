@@ -257,6 +257,84 @@ test('a TikTok connection abandoned while connecting is closed once it is up', a
   assert.equal(app.run('tiktokConnection'), null);
 });
 
+test('a TikTok connection that just drops is announced once TikTok says the stream is over', async () => {
+  let connection;
+  class TikTokConnection extends EventEmitter {
+    constructor() { super(); connection = this; }
+    async connect() { return { roomId: '123456789' }; }
+    async disconnect() {}
+  }
+  let status = 2;
+  const page = () => `<script id="SIGI_STATE">${JSON.stringify({ LiveRoom: { liveRoomUserInfo: {
+    user: { uniqueId: 'streamer', roomId: '123456789', status }, liveRoom: { status } } } })}</script>`;
+  const app = mainContext({ electron: { net: { fetch: async () => ({ ok: true, text: async () => page() }) } } });
+  app.context.connector = {
+    TikTokLiveConnection: TikTokConnection,
+    WebcastEvent: { CHAT: 'chat', GIFT: 'gift', FOLLOW: 'follow', SHARE: 'share', ROOM_USER: 'viewer', STREAM_END: 'end' },
+    ControlEvent: { ERROR: 'error', DISCONNECTED: 'disconnected' }
+  };
+  app.context.notices = [];
+  app.run(`
+    settings.tiktokUsername = 'streamer';
+    tiktokModulePromise = Promise.resolve(connector);
+    send = (channel, payload) => { if (channel === 'chat:system' && payload.sticky) notices.push(payload.text); };
+  `);
+  await app.run('connectTikTok()');
+  // No stream-end signal: the socket just closes, and the page then reports the stream as over.
+  status = 4;
+  connection.emit('disconnected');
+  await app.run('connectTikTok()');
+  assert.equal(app.context.notices.length, 1);
+  assert.match(app.context.notices[0], /beendet/);
+});
+
+test('a single empty stream answer from Twitch does not clear the chat', async () => {
+  const app = mainContext();
+  const cleared = [];
+  app.context.cleared = cleared;
+  app.run(`
+    send = (channel, payload) => { if (channel === 'chat:clear') cleared.push(payload.platform); };
+    twitchRequest = async () => ({ data: [] });
+    historyStore.twitch = { broadcasterId: '1', streamId: 's1', entries: [{ id: 'm1' }] };
+  `);
+  const broadcaster = { id: '1', login: 'koy_cat' };
+  app.context.broadcaster = broadcaster;
+  await app.run('syncTwitchStreamHistory(broadcaster)');
+  assert.ok(app.run('historyStore.twitch'), 'one hiccup keeps the chat');
+  await app.run('syncTwitchStreamHistory(broadcaster)');
+  assert.equal(app.run('historyStore.twitch'), null, 'the second empty answer ends the stream');
+  assert.deepEqual(cleared, ['twitch']);
+});
+
+test('OBS is asked to reload the caption source once, not on every lost connection', async () => {
+  const app = mainContext();
+  app.context.calls = [];
+  app.run(`
+    settings.captionsEnabled = true;
+    settings.obsRefreshEnabled = true;
+    captionServer = { clientCount: 0 };
+    refreshObsCaptionSources = async reason => { calls.push(reason); obsRefreshedAt = Date.now(); return ['Untertitel']; };
+  `);
+  for (let i = 0; i < 3; i += 1) app.run("scheduleObsRefresh('Quelle getrennt')");
+  assert.equal(app.timers.size, 1, 'repeated losses share one pending reload');
+  const [first] = app.timers.keys();
+  assert.equal(app.timers.get(first).ms, 8000);
+  await app.fire(first);
+  assert.deepEqual(app.context.calls, ['Quelle getrennt']);
+
+  // The reload itself drops the source for a moment; the next try waits for the 30 s pause.
+  app.run("scheduleObsRefresh('Quelle getrennt')");
+  const [second] = app.timers.keys();
+  assert.ok(app.timers.get(second).ms > 20000);
+  app.run('captionServer.clientCount = 1');
+  await app.fire(second);
+  assert.equal(app.context.calls.length, 1, 'no reload once the source is back');
+
+  app.run('settings.obsRefreshEnabled = false');
+  app.run("scheduleObsRefresh('Quelle getrennt')");
+  assert.equal(app.timers.size, 0, 'switched off means no reload at all');
+});
+
 test('a TikTok stream that is ended or suspended is announced once with its own notice', async () => {
   let connection;
   class TikTokConnection extends EventEmitter {

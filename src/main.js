@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, shell, globalShortcut, Tray, Menu, nativeIm
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const os = require('node:os');
 const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
 const { parseIrcLine, toChatEvent } = require('./twitch-irc');
@@ -164,6 +165,7 @@ let ircReconnectAttempt = 0;
 let eventReconnectAttempt = 0;
 let tiktokRetryAttempt = 0;
 let tiktokWasLive = false;
+let twitchOfflineChecks = 0;
 let streamMetrics = {
   twitchLive: false,
   twitchViewers: null,
@@ -384,54 +386,46 @@ function decrypt(value) {
   return safeStorage.decryptString(Buffer.from(value, 'base64'));
 }
 
-function loadTikTokApiKey() {
-  const stored = readJson(tiktokCredentialsPath(), null);
-  if (!stored?.apiKey) return '';
+// Keys and passwords are stored encrypted with Windows' own protection (safeStorage).
+function loadSecret(file, field = 'apiKey') {
+  const stored = readJson(file, null);
+  if (!stored?.[field]) return '';
   try {
-    return decrypt(stored.apiKey).trim();
+    return decrypt(stored[field]);
   } catch {
     return '';
   }
+}
+
+function saveSecret(file, value, field = 'apiKey') {
+  if (!value) {
+    try { fs.unlinkSync(file); } catch {}
+    return;
+  }
+  writeJson(file, { [field]: encrypt(value) });
+}
+
+function loadTikTokApiKey() {
+  return loadSecret(tiktokCredentialsPath()).trim();
 }
 
 function saveTikTokApiKey(value) {
   const next = String(value || '').trim().slice(0, 1024);
-  if (!next) {
-    try { fs.unlinkSync(tiktokCredentialsPath()); } catch {}
-    tiktokApiKey = '';
-    return;
-  }
-  writeJson(tiktokCredentialsPath(), { apiKey: encrypt(next) });
+  saveSecret(tiktokCredentialsPath(), next);
   tiktokApiKey = next;
 }
 
 function loadDeepLApiKey() {
-  const stored = readJson(deeplCredentialsPath(), null);
-  if (!stored?.apiKey) return '';
-  try {
-    return decrypt(stored.apiKey).trim();
-  } catch {
-    return '';
-  }
+  return loadSecret(deeplCredentialsPath()).trim();
 }
 
 function loadObsPassword() {
-  const stored = readJson(obsCredentialsPath(), null);
-  if (!stored?.password) return '';
-  try {
-    return decrypt(stored.password);
-  } catch {
-    return '';
-  }
+  return loadSecret(obsCredentialsPath(), 'password');
 }
 
 function saveObsPassword(value) {
   const next = String(value || '').slice(0, 256);
-  if (!next) {
-    try { fs.unlinkSync(obsCredentialsPath()); } catch {}
-  } else {
-    writeJson(obsCredentialsPath(), { password: encrypt(next) });
-  }
+  saveSecret(obsCredentialsPath(), next, 'password');
   obsPassword = next;
 }
 
@@ -479,13 +473,8 @@ function scheduleObsRefresh(reason) {
 
 function saveDeepLApiKey(value) {
   const next = String(value || '').trim().slice(0, 256);
-  if (!next) {
-    try { fs.unlinkSync(deeplCredentialsPath()); } catch {}
-    deeplApiKey = '';
-  } else {
-    writeJson(deeplCredentialsPath(), { apiKey: encrypt(next) });
-    deeplApiKey = next;
-  }
+  saveSecret(deeplCredentialsPath(), next);
+  deeplApiKey = next;
   translator?.reset();
 }
 
@@ -521,24 +510,13 @@ async function translateMessage(platform, messageId) {
 }
 
 function loadDeepgramApiKey() {
-  const stored = readJson(deepgramCredentialsPath(), null);
-  if (!stored?.apiKey) return '';
-  try {
-    return decrypt(stored.apiKey).trim();
-  } catch {
-    return '';
-  }
+  return loadSecret(deepgramCredentialsPath()).trim();
 }
 
 function saveDeepgramApiKey(value) {
   const next = String(value || '').trim().slice(0, 256);
-  if (!next) {
-    try { fs.unlinkSync(deepgramCredentialsPath()); } catch {}
-    deepgramApiKey = '';
-  } else {
-    writeJson(deepgramCredentialsPath(), { apiKey: encrypt(next) });
-    deepgramApiKey = next;
-  }
+  saveSecret(deepgramCredentialsPath(), next);
+  deepgramApiKey = next;
   if (captionStream?.active) captionStream.restart();
   else applyCaptions();
 }
@@ -1622,8 +1600,12 @@ async function syncTwitchStreamHistory(broadcaster, emitUnchanged = true, genera
   const result = await twitchRequest(`${TWITCH_API_URL}/streams?user_id=${encodeURIComponent(broadcaster.id)}`);
   if (generation !== twitchGeneration) return null;
   const stream = result?.data?.[0] || null;
-  updateTwitchStreamMetrics(stream);
   const existing = historyStore.twitch;
+  // A single empty answer can be a hiccup at Twitch; only the second one in a row
+  // (a minute later) ends the stream and clears its chat.
+  if (!stream && existing && ++twitchOfflineChecks < 2) return null;
+  twitchOfflineChecks = 0;
+  updateTwitchStreamMetrics(stream);
   if (!stream) {
     if (existing) {
       recordTwitchEvent(`Twitch meldet den Stream von #${broadcaster.login} als offline`);
@@ -2098,8 +2080,6 @@ function announceTikTokEnd(suspended) {
 
 function closeTikTokConnection(clearHistory = false) {
   ++tiktokGeneration;
-  // Changing the account or reconnecting by hand is not a stream end.
-  tiktokWasLive = false;
   clearTimeout(tiktokReconnectTimer);
   tiktokReconnectTimer = null;
   const connection = tiktokConnection;
@@ -2557,6 +2537,8 @@ function registerIpc() {
     }
     if (settings.channel !== oldChannel && accessSession?.user) connectTwitchAndReport();
     if (settings.tiktokUsername !== oldTikTokUsername) {
+      // A different account going offline is not the end of the stream we watched.
+      tiktokWasLive = false;
       tiktokRetryAttempt = 0;
       connectTikTok().catch(() => {});
     }
@@ -2574,30 +2556,27 @@ function registerIpc() {
     }
     return publicSettings();
   });
-  registerTrustedHandler('tiktok:open-log', async () => {
-    if (!fs.existsSync(tiktokLogPath())) throw new Error('Es gibt noch kein TikTok-Protokoll. Es entsteht beim ersten Verbindungsversuch.');
-    const failure = await shell.openPath(tiktokLogPath());
-    if (failure) throw new Error(failure);
-  });
+  for (const [channel, logPath, name] of [
+    ['tiktok:open-log', tiktokLogPath, 'TikTok-Protokoll'],
+    ['twitch:open-log', twitchLogPath, 'Twitch-Protokoll'],
+    ['captions:open-log', captionsLogPath, 'Untertitel-Protokoll']
+  ]) {
+    registerTrustedHandler(channel, async () => {
+      if (!fs.existsSync(logPath())) throw new Error(`Es gibt noch kein ${name}.`);
+      const failure = await shell.openPath(logPath());
+      if (failure) throw new Error(failure);
+    });
+  }
   registerTrustedHandler('captions:reveal-source-file', () => {
     const file = captionSourceFilePath();
     const lanHost = settings.captionsLanShare && captionServer?.lanUrl ? primaryLanAddress() : null;
+    const name = os.hostname().toLowerCase();
     fs.writeFileSync(file, captionSourceHtml(lanHost
-      ? { port: captionServer.port, host: lanHost, key: settings.captionsLanKey }
+      ? { port: captionServer.port, hosts: [lanHost, `${name}.local`, name], key: settings.captionsLanKey }
       : {}), 'utf8');
     clipboard.writeText(file);
     shell.showItemInFolder(file);
     return file;
-  });
-  registerTrustedHandler('twitch:open-log', async () => {
-    if (!fs.existsSync(twitchLogPath())) throw new Error('Es gibt noch kein Twitch-Protokoll.');
-    const failure = await shell.openPath(twitchLogPath());
-    if (failure) throw new Error(failure);
-  });
-  registerTrustedHandler('captions:open-log', async () => {
-    if (!fs.existsSync(captionsLogPath())) throw new Error('Es gibt noch kein Untertitel-Protokoll.');
-    const failure = await shell.openPath(captionsLogPath());
-    if (failure) throw new Error(failure);
   });
   registerTrustedHandler('tiktok:set-api-key', (_event, value) => {
     saveTikTokApiKey(value);

@@ -9,9 +9,13 @@ const PORT_ATTEMPTS = 10;
 // because OBS never retries a page that failed to load. This file always loads and
 // keeps trying to embed the live caption page until it answers.
 // For OBS on another computer, host and key point at the computer running the app.
-function captionSourceHtml({ port = DEFAULT_PORT, host = '127.0.0.1', key = '' } = {}) {
-  const ports = [];
-  for (let attempt = 0; attempt < PORT_ATTEMPTS; attempt += 1) ports.push(port + attempt);
+// Several host names (address and computer name) cover a home network address that
+// the router has changed in the meantime.
+function captionSourceHtml({ port = DEFAULT_PORT, hosts = ['127.0.0.1'], key = '' } = {}) {
+  const targets = [];
+  for (const host of hosts) targets.push(`${host}:${port}`);
+  // Only this computer moves to the next ports when one is taken.
+  if (hosts.length === 1) for (let attempt = 1; attempt < PORT_ATTEMPTS; attempt += 1) targets.push(`${hosts[0]}:${port + attempt}`);
   return `<!doctype html>
 <html lang="de">
 <head>
@@ -27,17 +31,16 @@ function captionSourceHtml({ port = DEFAULT_PORT, host = '127.0.0.1', key = '' }
 <script>
   // Created by Twitch Chat Overlay. The caption page reports once per second that it
   // is loaded; without that sign of life the frame is loaded again.
-  var ports = ${JSON.stringify(ports)};
-  var host = ${JSON.stringify(host)};
+  var targets = ${JSON.stringify(targets)};
   var key = ${JSON.stringify(key)};
   var frame = document.getElementById('captions');
   var attempt = 0;
   var aliveAt = 0;
   function load() {
-    // The usual port is tried every other time, the fallback ports in between.
-    var port = attempt % 2 === 0 ? ports[0] : ports[1 + ((attempt - 1) / 2) % (ports.length - 1)];
+    // The usual address is tried every other time, the alternatives in between.
+    var target = attempt % 2 === 0 ? targets[0] : targets[1 + ((attempt - 1) / 2) % (targets.length - 1)];
     attempt += 1;
-    frame.src = 'http://' + host + ':' + port + '/captions?' + (key ? 'key=' + key + '&' : '') + 't=' + Date.now();
+    frame.src = 'http://' + target + '/captions?' + (key ? 'key=' + key + '&' : '') + 't=' + Date.now();
   }
   window.addEventListener('message', function (event) {
     if (event.source === frame.contentWindow && event.data === 'captions-alive') aliveAt = Date.now();

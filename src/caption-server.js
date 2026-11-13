@@ -18,8 +18,12 @@ function primaryLanAddress(interfaces = os.networkInterfaces()) {
   const addresses = Object.values(interfaces || {}).flat()
     .filter(entry => entry && (entry.family === 'IPv4' || entry.family === 4) && !entry.internal)
     .map(entry => entry.address);
-  const isPrivate = address => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address);
-  return addresses.find(isPrivate) || addresses[0] || null;
+  const ranges = [/^192\.168\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./];
+  for (const range of ranges) {
+    const match = addresses.find(address => range.test(address));
+    if (match) return match;
+  }
+  return addresses[0] || null;
 }
 
 function lanAddresses(interfaces = os.networkInterfaces()) {
@@ -77,7 +81,7 @@ function createCaptionServer({
     // may address the server.
     const host = String(request.headers.host || '').toLowerCase();
     const names = [HOST, 'localhost'];
-    if (access.lan) names.push(...lanAddresses(getInterfaces()), os.hostname().toLowerCase());
+    if (access.lan) names.push(...lanAddresses(getInterfaces()), os.hostname().toLowerCase(), `${os.hostname().toLowerCase()}.local`);
     return names.some(name => host === `${name}:${activePort}`);
   }
 

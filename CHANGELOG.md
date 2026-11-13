@@ -5,7 +5,11 @@ Alle Versionen mit Download stehen unter [Releases](https://github.com/MrYoursel
 ## Version 0.2.7
 
 - **OBS-Quelle lädt sich selbst neu:** Neuer Schalter „Quelle in OBS automatisch neu laden“ unter Stream-Untertitel. Über den WebSocket-Server von OBS lädt das Overlay die Untertitel-Quelle neu, sobald acht Sekunden lang keine Quelle verbunden ist, etwa nach einem Spielabsturz oder wenn OBS vor dem Overlay gestartet wurde. Höchstens alle 30 Sekunden; das Passwort wird verschlüsselt gespeichert.
-- **Untertitel für OBS auf einem anderen Rechner:** Neuer Schalter „Im Heimnetz freigeben“ unter Stream-Untertitel. Die Adresse der Browserquelle zeigt dann auf diesen Rechner im Heimnetz und enthält einen geheimen Schlüssel; ohne ihn bekommt kein anderes Gerät die Untertitel. Gedacht für Aufbauten mit Capture Card, bei denen das Mikrofon an einem anderen Gerät hängt als OBS. Die lokale Datei für OBS lässt sich dafür auf den OBS-Rechner kopieren.
+- **Untertitel für OBS auf einem anderen Rechner:** Neuer Schalter „Im Heimnetz freigeben“ unter Stream-Untertitel. Die Adresse der Browserquelle zeigt dann auf diesen Rechner im Heimnetz und enthält einen geheimen Schlüssel; ohne ihn bekommt kein anderes Gerät die Untertitel. Gedacht für Aufbauten mit Capture Card, bei denen das Mikrofon an einem anderen Gerät hängt als OBS. Die lokale Datei für OBS lässt sich dafür auf den OBS-Rechner kopieren; sie versucht neben der Adresse auch den Gerätenamen, falls der Router eine neue Adresse vergibt.
+- **TikTok-Stream beendet:** Die Meldung erscheint jetzt auch, wenn die Verbindung ohne Ende-Signal abreißt und TikTok danach „nicht live“ meldet. Bisher ging das bei jedem automatischen Neuverbinden verloren.
+- **Twitch:** Eine einzelne leere Antwort von Twitch auf die Frage „läuft der Stream?“ leert den Chat nicht mehr; erst die zweite hintereinander gilt als Stream-Ende.
+- Im Heimnetz wird die übliche Adresse (192.168.x) vor virtuellen Netzwerkadaptern (WSL, Hyper-V) gewählt.
+- Das unsichtbare TikTok-Hilfsfenster hat für Laden und Auslesen eine gemeinsame Zeitgrenze und kann die Neuverbindung nicht mehr dauerhaft blockieren.
 
 ## Version 0.2.6
 

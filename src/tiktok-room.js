@@ -193,13 +193,24 @@ async function resolveTikTokRoomIdWithBrowser(username, BrowserWindowClass, time
     const timeoutPromise = new Promise((_resolve, reject) => {
       timeout = setTimeout(() => reject(new Error('Versteckter TikTok-Browser hat nicht rechtzeitig geantwortet.')), timeoutMs);
     });
-    await Promise.race([
-      helperWindow.loadURL(target, {
-        userAgent: TIKTOK_BROWSER_UA,
-        extraHeaders: 'Accept-Language: de-DE,de;q=0.9,en;q=0.7\r\n'
-      }),
-      timeoutPromise
-    ]);
+    // Loading and reading the page share one time limit: a page that hangs while being
+    // read must not stop all further connection attempts.
+    const lookup = readRoomId(target);
+    lookup.catch(() => {});
+    return await Promise.race([lookup, timeoutPromise]);
+  } finally {
+    clearTimeout(timeout);
+    if (!helperWindow.isDestroyed()) {
+      helperWindow.webContents.stop?.();
+      helperWindow.destroy();
+    }
+  }
+
+  async function readRoomId(target) {
+    await helperWindow.loadURL(target, {
+      userAgent: TIKTOK_BROWSER_UA,
+      extraHeaders: 'Accept-Language: de-DE,de;q=0.9,en;q=0.7\r\n'
+    });
 
     let lastPage = null;
     for (const delay of [0, 500, 1000, 2000]) {
@@ -227,10 +238,6 @@ async function resolveTikTokRoomIdWithBrowser(username, BrowserWindowClass, time
     const pageTitle = String(lastPage?.title || 'unbekannte Seite').replace(/[\r\n]+/g, ' ').slice(0, 120);
     const pageDetails = `HTML ${String(lastPage?.html || '').length}, SIGI ${String(lastPage?.sigi || '').length}, Ressourcen ${(lastPage?.resources || []).length}`;
     throw new Error(`Versteckte TikTok-Seite enthält keine passende Room-ID (${pageTitle}; ${pageDetails}).`);
-  } finally {
-    clearTimeout(timeout);
-    helperWindow.webContents.stop?.();
-    if (!helperWindow.isDestroyed()) helperWindow.destroy();
   }
 }
 

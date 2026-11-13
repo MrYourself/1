@@ -191,13 +191,21 @@ test('sanitizes the new caption appearance settings', () => {
 test('the local source file embeds the caption page and retries the usual and the fallback ports', () => {
   const { captionSourceHtml } = require('../src/caption-source-file');
   const local = captionSourceHtml();
-  assert.match(local, /var ports = \[17873,17874,17875,17876,17877,17878,17879,17880,17881,17882\];/);
-  assert.match(local, /var host = "127\.0\.0\.1";/);
+  assert.match(local, /var targets = \["127\.0\.0\.1:17873","127\.0\.0\.1:17874",.*"127\.0\.0\.1:17882"\];/);
   assert.match(local, /var key = "";/);
   assert.match(local, /captions-alive/);
-  const remote = captionSourceHtml({ port: 17873, host: '192.168.178.23', key: 'a'.repeat(32) });
-  assert.match(remote, /var host = "192\.168\.178\.23";/);
+  // In the home network the computer name covers an address the router has changed.
+  const remote = captionSourceHtml({ port: 17873, hosts: ['192.168.178.23', 'rog-ally.local', 'rog-ally'], key: 'a'.repeat(32) });
+  assert.match(remote, /var targets = \["192\.168\.178\.23:17873","rog-ally\.local:17873","rog-ally:17873"\];/);
   assert.match(remote, /var key = "a{32}";/);
+});
+
+test('picks the home network address before virtual adapters', () => {
+  const { primaryLanAddress } = require('../src/caption-server');
+  const ipv4 = address => ({ family: 'IPv4', internal: false, address });
+  assert.equal(primaryLanAddress({ 'vEthernet (WSL)': [ipv4('172.28.16.1')], WLAN: [ipv4('192.168.178.23')] }), '192.168.178.23');
+  assert.equal(primaryLanAddress({ Ethernet: [ipv4('10.0.0.5')], 'vEthernet (WSL)': [ipv4('172.28.16.1')] }), '10.0.0.5');
+  assert.equal(primaryLanAddress({ lo: [{ family: 'IPv4', internal: true, address: '127.0.0.1' }] }), null);
 });
 
 test('shared in the home network, other computers get the caption lines only with the key', async () => {
