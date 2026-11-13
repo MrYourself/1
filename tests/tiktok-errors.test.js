@@ -4,7 +4,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   friendlyTikTokError,
-  shouldRetryWithoutExtendedGiftInfo,
   tikTokRetryDelay
 } = require('../src/tiktok-errors');
 
@@ -47,17 +46,6 @@ test('does not mistake an unrelated page fallback error for a rejected Euler key
     friendlyTikTokError(signature, '', pageFallback, { apiKeyConfigured: true }),
     /keine nutzbare WebSocket-Antwort/
   );
-});
-
-test('detects the optional gift-info failure used by the connection fallback', () => {
-  assert.equal(shouldRetryWithoutExtendedGiftInfo(new Error('Failed to fetch available gifts (403)')), true);
-
-  const missingTokens = Object.assign(new Error('[Empty Payload] Failed to sign a request due to missing tokens'), {
-    name: 'SignatureMissingTokensError'
-  });
-  assert.equal(shouldRetryWithoutExtendedGiftInfo(missingTokens), true);
-  assert.equal(shouldRetryWithoutExtendedGiftInfo(new Error('[Sign Error] Unexpected sign server status 404')), false);
-  assert.equal(shouldRetryWithoutExtendedGiftInfo(new Error('Too many connections started (429)')), false);
 });
 
 test('explains a composite room-id failure including the direct page fallback', () => {

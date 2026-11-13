@@ -93,19 +93,4 @@ function tikTokRetryDelay(error, fallback = 30000) {
   return fallback;
 }
 
-function shouldRetryWithoutExtendedGiftInfo(error) {
-  const searchable = nestedErrorText(error);
-  if (isRateLimitError(searchable)) return false;
-
-  // In connector 2.4.x the optional gift-list request runs before the WebSocket.
-  // Its signing errors do not mention gifts, while the WebSocket route does not
-  // throw SignatureMissingTokensError. Treat these as a failed optional preflight
-  // and retry the actual chat connection without the extra gift catalogue.
-  return searchable.includes('signaturemissingtokenserror') ||
-    (searchable.includes('empty payload') && searchable.includes('failed to sign')) ||
-    searchable.includes('fetchroomgiftsroute') || searchable.includes('failed to fetch room gifts') ||
-    searchable.includes('failed to fetch available gifts') || searchable.includes('available gifts') ||
-    searchable.includes('permission from the signature provider to sign this url');
-}
-
-module.exports = { friendlyTikTokError, nestedErrorText, shouldRetryWithoutExtendedGiftInfo, tikTokRetryDelay };
+module.exports = { friendlyTikTokError, nestedErrorText, tikTokRetryDelay };

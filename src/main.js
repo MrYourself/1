@@ -14,7 +14,7 @@ const {
   normalizeTikTokGift,
   normalizeTikTokSocial
 } = require('./tiktok-normalizer');
-const { friendlyTikTokError, nestedErrorText, shouldRetryWithoutExtendedGiftInfo, tikTokRetryDelay } = require('./tiktok-errors');
+const { friendlyTikTokError, nestedErrorText, tikTokRetryDelay } = require('./tiktok-errors');
 const { resolveTikTokRoomId, resolveTikTokRoomIdWithBrowser } = require('./tiktok-room');
 const { toTwitchFollowNotice } = require('./twitch-events');
 const { configureTikTokSigner } = require('./tiktok-signing');
@@ -986,6 +986,21 @@ function recordAuthEvent(message) {
 
 // Connection attempts, failures and disconnects of the TikTok chat, so a stream
 // without comments can be explained afterwards. The API key is never written.
+// While the account is offline the overlay retries every two minutes. Logging every
+// identical failure pushed the interesting lines out of the 300-line log within hours,
+// so a repeat (numbers ignored) is only counted and named with the next different line.
+const tiktokRepeat = { key: '', at: 0, count: 0 };
+
+function recordTikTokFailure(message) {
+  const key = String(message).replace(/\d+/g, '#');
+  if (key === tiktokRepeat.key && Date.now() - tiktokRepeat.at < 30 * 60 * 1000) {
+    tiktokRepeat.count += 1;
+    return;
+  }
+  recordTikTokEvent(tiktokRepeat.count ? `${message} (davor ${tiktokRepeat.count} gleiche Fehlversuche)` : message);
+  Object.assign(tiktokRepeat, { key, at: Date.now(), count: 0 });
+}
+
 function recordTikTokEvent(message) {
   let text = String(message);
   for (const key of new Set([tiktokApiKey, tiktokApiKey.toLowerCase()])) {
@@ -2171,7 +2186,12 @@ async function connectTikTok() {
   connectionDiagnostics.tiktokRetryAt = null;
   emitDiagnostics();
   setStatus('connecting', `TikTok @${username} wird gesucht …`);
-  recordTikTokEvent(`Verbindungsversuch @${username}, Euler-Key ${tiktokApiKey ? 'gespeichert' : 'fehlt'}`);
+  if (tiktokRetryAttempt === 0) recordTikTokEvent(`Verbindungsversuch @${username}, Euler-Key ${tiktokApiKey ? 'gespeichert' : 'fehlt'}`);
+  // The hidden browser page and the library's own look-up (whose last resort is an
+  // Euler request) are expensive. While the account is offline they only run on the
+  // first attempt and every third one after it, not every two minutes for hours.
+  const thorough = tiktokRetryAttempt % 3 === 0;
+  let roomSource = 'TikTok-Seite';
   let roomLookupError = null;
   try {
     tiktokModulePromise ||= import('tiktok-live-connector');
@@ -2190,19 +2210,24 @@ async function connectTikTok() {
     } catch (networkError) {
       // TikTok itself says the stream is over: no fallback and no connection attempt.
       if (networkError?.name === 'TikTokOfflineError') throw networkError;
+      if (!thorough) {
+        throw new Error(`Keine laufende LIVE-Sitzung gefunden (not live; ${networkError?.message || networkError})`, { cause: networkError });
+      }
       try {
         resolvedRoomId = await resolveTikTokRoomIdWithBrowser(username, BrowserWindow);
+        roomSource = 'verstecktes Fenster';
       } catch (browserError) {
         if (browserError?.name === 'TikTokOfflineError') throw browserError;
         roomLookupError = new Error(
           `Seitenabruf: ${networkError?.message || networkError}; versteckter Browser: ${browserError?.message || browserError}`,
           { cause: browserError }
         );
+        roomSource = 'TikTok-Bibliothek';
       }
     }
     if (generation !== tiktokGeneration) return;
 
-    const openConnection = async enableExtendedGiftInfo => {
+    const openConnection = async () => {
       const { TikTokLiveConnection, WebcastEvent, ControlEvent } = connector;
       const connection = new TikTokLiveConnection(username, {
         // TikTok hands over the room's recent comments on connect. The room belongs to
@@ -2211,7 +2236,7 @@ async function connectTikTok() {
         // The public LIVE page already verified this room. Avoid a second TikTok endpoint
         // that is frequently blocked even when the websocket itself is available.
         fetchRoomInfoOnConnect: !resolvedRoomId,
-        enableExtendedGiftInfo,
+        enableExtendedGiftInfo: false,
         ...(tiktokApiKey ? { signApiKey: tiktokApiKey } : {}),
         webClientOptions: { timeout: { request: 15000 } },
         wsClientOptions: { handshakeTimeout: 15000 }
@@ -2316,15 +2341,9 @@ async function connectTikTok() {
       }
     };
 
-    let opened;
-    try {
-      opened = await openConnection(true);
-    } catch (error) {
-      if (!shouldRetryWithoutExtendedGiftInfo(error) || generation !== tiktokGeneration) throw error;
-      recordTikTokEvent(`Geschenkdetails nicht abrufbar, zweiter Versuch ohne: ${tiktokErrorDetail(error)}`);
-      discardTikTokConnection(tiktokConnection);
-      opened = await openConnection(false);
-    }
+    // The gift catalogue needs an Euler business plan and failed on every connect;
+    // gift name, picture and value come with each gift event anyway.
+    const opened = await openConnection();
     if (!opened || generation !== tiktokGeneration || opened.connection !== tiktokConnection) return;
     const { connection, connected } = opened;
     const startedAt = activateTikTokHistory(username, connected?.roomId || resolvedRoomId || connection.roomId, connection);
@@ -2337,7 +2356,8 @@ async function connectTikTok() {
     setConnectionPart('tiktok', true);
     opened.releasePending();
     tiktokWasLive = true;
-    recordTikTokEvent(`Verbunden mit Raum ${connected?.roomId || resolvedRoomId || connection.roomId || 'unbekannt'}`);
+    recordTikTokEvent(`Verbunden mit Raum ${connected?.roomId || resolvedRoomId || connection.roomId || 'unbekannt'} (Raumnummer über: ${roomSource})`);
+    Object.assign(tiktokRepeat, { key: '', count: 0 });
     send('chat:system', { text: `TikTok-Chat für @${username} ist aktiv.` });
   } catch (error) {
     if (generation !== tiktokGeneration) return;
@@ -2353,7 +2373,7 @@ async function connectTikTok() {
     const retryDelay = tikTokRetryDelay(error, reconnectDelay(tiktokRetryAttempt++, 30000, 120000));
     // The connection dropped without a stream-end signal and TikTok now says "not live".
     if (error?.name === 'TikTokOfflineError') announceTikTokEnd(false);
-    recordTikTokEvent(error?.name === 'TikTokOfflineError'
+    recordTikTokFailure(error?.name === 'TikTokOfflineError'
       ? `Nicht live laut TikTok-Seite; neuer Versuch in ${Math.round(retryDelay / 1000)} s`
       : `Verbindung fehlgeschlagen: ${tiktokErrorDetail(error, roomLookupError)}; neuer Versuch in ${Math.round(retryDelay / 1000)} s`);
     // Each failed attempt may start a hidden Chromium page, so an offline account

@@ -288,6 +288,41 @@ test('a TikTok connection that just drops is announced once TikTok says the stre
   assert.match(app.context.notices[0], /beendet/);
 });
 
+test('while TikTok is offline, the expensive look-ups only run on every third attempt', async () => {
+  const constructed = [];
+  class TikTokConnection extends EventEmitter {
+    constructor() { super(); constructed.push(this); }
+    async connect() { throw new Error('Failed to retrieve Room ID from all sources.'); }
+    async disconnect() {}
+  }
+  // A page without any room, as TikTok serves it while nobody is live.
+  const app = mainContext({ electron: { net: { fetch: async () => ({ ok: true, text: async () => '<html></html>' }) } } });
+  app.context.connector = {
+    TikTokLiveConnection: TikTokConnection,
+    WebcastEvent: { CHAT: 'chat', GIFT: 'gift', FOLLOW: 'follow', SHARE: 'share', ROOM_USER: 'viewer', STREAM_END: 'end' },
+    ControlEvent: { ERROR: 'error', DISCONNECTED: 'disconnected' }
+  };
+  app.run("settings.tiktokUsername = 'streamer'; tiktokModulePromise = Promise.resolve(connector); send = () => {};");
+  for (let attempt = 0; attempt < 6; attempt += 1) await app.run('connectTikTok()');
+  // Attempts 0 and 3 go all the way (the library's own look-up ends with an Euler request).
+  assert.equal(constructed.length, 2);
+  assert.equal(app.run('tiktokRetryAttempt'), 6);
+  assert.match(app.run('connectionDiagnostics.tiktokError'), /nicht als LIVE erkannt/);
+});
+
+test('identical TikTok failures are counted instead of filling the log', () => {
+  const app = mainContext();
+  app.context.lines = [];
+  app.run('recordTikTokEvent = line => lines.push(line);');
+  app.run("recordTikTokFailure('Nicht live laut TikTok-Seite; neuer Versuch in 30 s')");
+  for (let i = 0; i < 4; i += 1) app.run("recordTikTokFailure('Nicht live laut TikTok-Seite; neuer Versuch in 120 s')");
+  app.run("recordTikTokFailure('Verbindung fehlgeschlagen: rate limit')");
+  assert.deepEqual(app.context.lines, [
+    'Nicht live laut TikTok-Seite; neuer Versuch in 30 s',
+    'Verbindung fehlgeschlagen: rate limit (davor 4 gleiche Fehlversuche)'
+  ]);
+});
+
 test('a single empty stream answer from Twitch does not clear the chat', async () => {
   const app = mainContext();
   const cleared = [];
