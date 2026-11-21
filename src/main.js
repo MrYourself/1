@@ -15,7 +15,7 @@ const {
   normalizeTikTokSocial
 } = require('./tiktok-normalizer');
 const { friendlyTikTokError, nestedErrorText, tikTokRetryDelay } = require('./tiktok-errors');
-const { resolveTikTokRoomId, resolveTikTokRoomIdWithBrowser } = require('./tiktok-room');
+const { fetchTikTokRoomStatus, offlineError, resolveTikTokRoomId, resolveTikTokRoomIdWithBrowser } = require('./tiktok-room');
 const { toTwitchFollowNotice } = require('./twitch-events');
 const { configureTikTokSigner } = require('./tiktok-signing');
 const { createPendingEventBuffer } = require('./pending-events');
@@ -2226,6 +2226,19 @@ async function connectTikTok() {
       }
     }
     if (generation !== tiktokGeneration) return;
+    // A room number found here may belong to the last, finished stream. Without this
+    // check the overlay sat in such a room for a whole stream and showed no comment.
+    if (resolvedRoomId) {
+      const status = await fetchTikTokRoomStatus(resolvedRoomId, (url, options) => net.fetch(url, options));
+      if (generation !== tiktokGeneration) return;
+      if (status === 4) {
+        if (!thorough) throw offlineError(username);
+        // The page may name the old room even while a new stream runs. The library then
+        // looks the room up itself and checks its status before joining.
+        resolvedRoomId = null;
+        roomSource = 'TikTok-Bibliothek (Seite nannte alten Raum)';
+      }
+    }
 
     const openConnection = async () => {
       const { TikTokLiveConnection, WebcastEvent, ControlEvent } = connector;

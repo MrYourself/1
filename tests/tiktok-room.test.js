@@ -110,3 +110,16 @@ test('a finished stream counts as offline even though the page still names its r
   await assert.rejects(resolveTikTokRoomId('streamer', fetchPage(4)), error => error.name === 'TikTokOfflineError');
   assert.equal(tikTokStreamEnded({ LiveRoom: { liveRoomUserInfo: { user: { uniqueId: 'other', status: 4 } } } }, 'streamer'), false);
 });
+
+test('reads the room status and stays silent when TikTok does not answer', async () => {
+  const { fetchTikTokRoomStatus } = require('../src/tiktok-room');
+  const answer = body => async url => {
+    assert.match(url, /^https:\/\/webcast\.tiktok\.com\/webcast\/room\/info\/\?aid=1988&room_id=7707640574066117398$/);
+    return { ok: true, json: async () => body };
+  };
+  assert.equal(await fetchTikTokRoomStatus('7707640574066117398', answer({ data: { status: 4 } })), 4);
+  assert.equal(await fetchTikTokRoomStatus('7707640574066117398', answer({ data: { status: 2 } })), 2);
+  assert.equal(await fetchTikTokRoomStatus('7707640574066117398', answer({ data: {} })), null);
+  assert.equal(await fetchTikTokRoomStatus('7707640574066117398', async () => ({ ok: false, status: 403 })), null);
+  assert.equal(await fetchTikTokRoomStatus('7707640574066117398', async () => { throw new Error('offline'); }), null);
+});

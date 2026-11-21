@@ -39,6 +39,27 @@ function offlineError(username) {
   return error;
 }
 
+// The page and the fallbacks sometimes name the account's last, already finished room.
+// Such a room accepts a connection but never sends anything. Its status tells: 2 live,
+// 4 finished; null when TikTok does not answer, so a blocked check never stops a connection.
+async function fetchTikTokRoomStatus(roomId, fetchImpl, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchImpl(`https://webcast.tiktok.com/webcast/room/info/?aid=1988&room_id=${encodeURIComponent(roomId)}`, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json', 'User-Agent': TIKTOK_BROWSER_UA }
+    });
+    if (!response.ok) return null;
+    const status = Number((await response.json())?.data?.status);
+    return Number.isFinite(status) ? status : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function parseJsonText(value) {
   if (!value) return null;
   try {
@@ -242,6 +263,8 @@ async function resolveTikTokRoomIdWithBrowser(username, BrowserWindowClass, time
 }
 
 module.exports = {
+  fetchTikTokRoomStatus,
+  offlineError,
   extractTikTokRoomId,
   extractTikTokRoomIdByPattern,
   extractTikTokRoomIdFromScripts,

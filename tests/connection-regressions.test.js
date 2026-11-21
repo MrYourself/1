@@ -288,6 +288,39 @@ test('a TikTok connection that just drops is announced once TikTok says the stre
   assert.match(app.context.notices[0], /beendet/);
 });
 
+test('a finished room named by the page is never joined', async () => {
+  const joined = [];
+  let options;
+  class TikTokConnection extends EventEmitter {
+    constructor(_username, connectionOptions) { super(); options = connectionOptions; }
+    // The library looks the room up itself and refuses a finished one.
+    async connect(roomId) {
+      joined.push(roomId);
+      throw Object.assign(new Error("The requested user isn't online :("), { name: 'UserOfflineError' });
+    }
+    async disconnect() {}
+  }
+  // The page still names the last room; the room-info answer says it is over.
+  const fetch = async url => url.includes('/webcast/room/info/')
+    ? { ok: true, json: async () => ({ data: { status: 4 } }) }
+    : { ok: true, text: async () => '<script id="SIGI_STATE">{"LiveRoom":{"liveRoomUserInfo":{"user":{"uniqueId":"streamer","roomId":"7707640574066117398"}}}}</script>' };
+  const app = mainContext({ electron: { net: { fetch } } });
+  app.context.connector = {
+    TikTokLiveConnection: TikTokConnection,
+    WebcastEvent: { CHAT: 'chat', GIFT: 'gift', FOLLOW: 'follow', SHARE: 'share', ROOM_USER: 'viewer', STREAM_END: 'end' },
+    ControlEvent: { ERROR: 'error', DISCONNECTED: 'disconnected' }
+  };
+  app.run("settings.tiktokUsername = 'streamer'; tiktokModulePromise = Promise.resolve(connector); send = () => {};");
+  // First attempt: the library gets to search the current room itself, with its status check.
+  await app.run('connectTikTok()');
+  assert.deepEqual(joined, [undefined], 'the old room number is not passed on');
+  assert.equal(options.fetchRoomInfoOnConnect, true);
+  assert.match(app.run('connectionDiagnostics.tiktokError'), /nicht als LIVE erkannt/);
+  // Cheap attempts in between stop right away.
+  await app.run('connectTikTok()');
+  assert.equal(joined.length, 1);
+});
+
 test('while TikTok is offline, the expensive look-ups only run on every third attempt', async () => {
   const constructed = [];
   class TikTokConnection extends EventEmitter {
