@@ -2231,13 +2231,9 @@ async function connectTikTok() {
     if (resolvedRoomId) {
       const status = await fetchTikTokRoomStatus(resolvedRoomId, (url, options) => net.fetch(url, options));
       if (generation !== tiktokGeneration) return;
-      if (status === 4) {
-        if (!thorough) throw offlineError(username);
-        // The page may name the old room even while a new stream runs. The library then
-        // looks the room up itself and checks its status before joining.
-        resolvedRoomId = null;
-        roomSource = 'TikTok-Bibliothek (Seite nannte alten Raum)';
-      }
+      // The page names the account's newest room, so a finished one means not live. The
+      // library's own look-up is no help here: TikTok refuses it and Euler needs a paid plan.
+      if (status === 4) throw offlineError(username);
     }
 
     const openConnection = async () => {

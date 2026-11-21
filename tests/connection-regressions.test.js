@@ -311,14 +311,11 @@ test('a finished room named by the page is never joined', async () => {
     ControlEvent: { ERROR: 'error', DISCONNECTED: 'disconnected' }
   };
   app.run("settings.tiktokUsername = 'streamer'; tiktokModulePromise = Promise.resolve(connector); send = () => {};");
-  // First attempt: the library gets to search the current room itself, with its status check.
+  // The newest room is finished, so nobody is live: no connection and no Euler request.
   await app.run('connectTikTok()');
-  assert.deepEqual(joined, [undefined], 'the old room number is not passed on');
-  assert.equal(options.fetchRoomInfoOnConnect, true);
+  assert.deepEqual(joined, []);
+  assert.equal(options, undefined, 'no connection is even prepared');
   assert.match(app.run('connectionDiagnostics.tiktokError'), /nicht als LIVE erkannt/);
-  // Cheap attempts in between stop right away.
-  await app.run('connectTikTok()');
-  assert.equal(joined.length, 1);
 });
 
 test('while TikTok is offline, the expensive look-ups only run on every third attempt', async () => {
