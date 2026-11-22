@@ -69,7 +69,7 @@ function sanitizeSettingsUpdate(update, normalizeTikTokUsername = value => Strin
   if (Array.isArray(update.translationSkipLanguages)) {
     result.translationSkipLanguages = normalizeLanguageList(update.translationSkipLanguages);
   }
-  for (const key of ['captionsEnabled', 'captionsShowOriginal', 'captionsOnlyTranslated', 'captionsLanShare', 'obsRefreshEnabled', 'captionsBox', 'captionsWindowVisible', 'updateBeta']) {
+  for (const key of ['captionsEnabled', 'captionsShowOriginal', 'captionsOnlyTranslated', 'captionsLanShare', 'obsRefreshEnabled', 'captionsBox', 'captionsWindowVisible', 'updateBeta', 'hardwareAcceleration']) {
     if (typeof update[key] === 'boolean') result[key] = update[key];
   }
   if (INSTALL_MODES.includes(update.updateInstall)) result.updateInstall = update.updateInstall;

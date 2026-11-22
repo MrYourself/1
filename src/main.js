@@ -88,6 +88,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   captionsLanKey: '',
   updateBeta: false,
   updateInstall: 'start',
+  hardwareAcceleration: true,
   bounds: { width: 520, height: 760 }
 });
 const RECENT_MESSAGE_LIMIT = 500;
@@ -2659,6 +2660,10 @@ if (app && app.isPackaged === false) app.setPath('userData', path.join(app.getPa
 // so it never touches a real login, key or chat history.
 const smokeTest = app && process.argv.includes('--smoke-test');
 if (smokeTest) app.setPath('userData', path.join(app.getPath('temp'), `twitch-chat-overlay-smoke-${process.pid}`));
+
+// Must happen before the app is ready. Rules the overlay out when a graphics driver hangs
+// under stream load; Chromium then draws on the processor.
+if (app && readJson(settingsPath(), {}).hardwareAcceleration === false) app.disableHardwareAcceleration();
 
 const singleInstanceLock = app.requestSingleInstanceLock();
 if (!singleInstanceLock) {

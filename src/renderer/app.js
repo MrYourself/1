@@ -28,7 +28,7 @@ const dom = Object.fromEntries([
   'captionsUrlInput', 'copyCaptionsUrlButton', 'captionsUrlHelp', 'captionsTextColorInput', 'captionsBoxInput',
   'captionsWindowInput', 'captionsBackgroundField', 'captionsSourceStatus', 'captionsTestButton', 'captionsSourceFileButton', 'captionsSourceFileHelp', 'captionsLanInput', 'captionsLanHelp', 'obsRefreshInput', 'obsFields', 'obsHostInput', 'obsPortInput', 'obsPasswordInput', 'saveObsPasswordButton', 'obsRefreshButton', 'obsStatus',
   'updateStatusText', 'checkUpdateButton', 'installUpdateButton', 'downloadUpdateButton', 'updateBetaInput', 'updateInstallInput',
-  'demoButton', 'clearButton', 'accountLabel', 'reconnectButton', 'logoutButton'
+  'hardwareAccelerationInput', 'demoButton', 'clearButton', 'accountLabel', 'reconnectButton', 'logoutButton'
 ].map(id => [id, document.getElementById(id)]));
 
 let state = {
@@ -176,6 +176,7 @@ function fillSettings(next) {
   dom.captionsLanHelp.classList.toggle('hidden', !settings.captionsLanShare);
   dom.updateBetaInput.checked = Boolean(settings.updateBeta);
   dom.updateInstallInput.value = settings.updateInstall || 'start';
+  dom.hardwareAccelerationInput.checked = settings.hardwareAcceleration !== false;
   renderUpdateState(lastUpdateState);
   dom.captionsTextColorInput.value = settings.captionsTextColor || '#ffffff';
   dom.captionsBoxInput.checked = settings.captionsBox !== false;
@@ -751,7 +752,8 @@ function settingsFromForm() {
     captionsBox: dom.captionsBoxInput.checked,
     captionsWindowVisible: dom.captionsWindowInput.checked,
     updateBeta: dom.updateBetaInput.checked,
-    updateInstall: dom.updateInstallInput.value
+    updateInstall: dom.updateInstallInput.value,
+    hardwareAcceleration: dom.hardwareAccelerationInput.checked
   };
 }
 
@@ -883,7 +885,7 @@ for (const input of [dom.timestampsInput, dom.compactInput, dom.botsInput, dom.c
 for (const input of [dom.channelInput, dom.tiktokUsernameInput, dom.hiddenUsersInput, dom.blockedTermsInput,
   dom.translationInput, dom.translationTargetInput, dom.translationSkipInput,
   dom.captionsInput, dom.captionsDeviceInput, dom.captionsTargetInput, dom.captionsBackgroundInput, dom.captionsOriginalInput, dom.captionsOnlyTranslatedInput, dom.captionsLanInput, dom.obsRefreshInput, dom.obsHostInput, dom.obsPortInput,
-  dom.captionsBoxInput, dom.captionsWindowInput, dom.updateBetaInput, dom.updateInstallInput]) {
+  dom.captionsBoxInput, dom.captionsWindowInput, dom.updateBetaInput, dom.updateInstallInput, dom.hardwareAccelerationInput]) {
   input.addEventListener('change', () => queueSettingsSave(true));
 }
 dom.saveDeepgramApiKeyButton.addEventListener('click', async () => {
