@@ -13,6 +13,7 @@ Alle Versionen mit Download stehen unter [Releases](https://github.com/MrYoursel
 - **TikTok-Protokoll:** Gleiche Fehlversuche werden gezählt statt einzeln geschrieben, damit das Protokoll nicht nach wenigen Stunden nur noch aus „nicht live“ besteht. Beim Verbinden steht dabei, worüber die Raumnummer gefunden wurde.
 - **TikTok-Stream beendet:** Die Meldung erscheint jetzt auch, wenn die Verbindung ohne Ende-Signal abreißt und TikTok danach „nicht live“ meldet. Bisher ging das bei jedem automatischen Neuverbinden verloren.
 - **Twitch:** Eine einzelne leere Antwort von Twitch auf die Frage „läuft der Stream?“ leert den Chat nicht mehr; erst die zweite hintereinander gilt als Stream-Ende.
+- Schalter mit zweizeiligem Text (etwa „Nur Übersetzungen anzeigen“) werden in den Einstellungen nicht mehr gestaucht.
 - Im Heimnetz wird die übliche Adresse (192.168.x) vor virtuellen Netzwerkadaptern (WSL, Hyper-V) gewählt.
 - Das unsichtbare TikTok-Hilfsfenster hat für Laden und Auslesen eine gemeinsame Zeitgrenze und kann die Neuverbindung nicht mehr dauerhaft blockieren.
 
